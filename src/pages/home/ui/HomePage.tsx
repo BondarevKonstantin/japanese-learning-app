@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { AppLayout } from '@/app/layouts/AppLayout';
-import { useAuth } from '@/app/providers/useAuth';
+import { useAuth } from '@/app/providers/auth/useAuth';
 import { routes } from '@/shared/config/routes';
 
 export const HomePage = () => {
@@ -12,7 +12,7 @@ export const HomePage = () => {
         <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">Japanese Learning App</h1>
 
         <p className="mt-4 max-w-2xl text-base text-text-secondary sm:text-lg">
-          Фундамент проекта готов. Сейчас можно тестировать регистрацию и вход.
+          Фундамент проекта готов. Сейчас можно тестировать регистрацию, вход и роли.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -28,6 +28,13 @@ export const HomePage = () => {
             className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background"
           >
             Вход
+          </Link>
+
+          <Link
+            to={routes.teacherCourses}
+            className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background"
+          >
+            Teacher Courses
           </Link>
         </div>
 

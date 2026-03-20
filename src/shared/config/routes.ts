@@ -1,7 +1,6 @@
 export const routes = {
   home: '/',
-  login: '/login',
   register: '/register',
-  studentDashboard: '/student',
-  teacherDashboard: '/teacher',
+  login: '/login',
+  teacherCourses: '/teacher/courses',
 } as const;
