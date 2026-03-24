@@ -7,6 +7,9 @@ import { TeacherCoursesPage } from '@/pages/teacher/courses/ui/TeacherCoursesPag
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
 import { TeacherRoute } from '@/app/router/TeacherRoute';
 import { routes } from '@/shared/config/routes';
+import { TeacherGachaCardsPage } from '@/pages/teacher/gacha-cards/ui/TeacherGachaCardsPage';
+import { GachaPage } from '@/pages/gacha/ui/GachaPage';
+import { GachaCollectionPage } from '@/pages/gacha-collection/ui/GachaCollectionPage';
 
 export const router = createBrowserRouter([
   {
@@ -31,7 +34,19 @@ export const router = createBrowserRouter([
             path: routes.teacherCourses,
             element: <TeacherCoursesPage />,
           },
+          {
+            path: routes.teacherGachaCards,
+            element: <TeacherGachaCardsPage />,
+          },
         ],
+      },
+      {
+        path: routes.courseGacha,
+        element: <GachaPage />,
+      },
+      {
+        path: routes.courseCollection,
+        element: <GachaCollectionPage />,
       },
     ],
   },

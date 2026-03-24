@@ -36,6 +36,13 @@ export const HomePage = () => {
           >
             Teacher Courses
           </Link>
+
+          <Link
+            to={routes.teacherGachaCards}
+            className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background"
+          >
+            Teacher Gacha
+          </Link>
         </div>
 
         <div className="mt-8 w-full max-w-2xl rounded-2xl border border-border bg-surface p-4 text-left text-sm">
