@@ -4,6 +4,9 @@ export const routes = {
   login: '/login',
 
   teacherCourses: '/teacher/courses',
+  teacherCreateCourse: '/teacher/courses/create',
+  teacherCourseLessons: '/teacher/courses/:courseId/lessons',
+  teacherCreateLesson: '/teacher/courses/:courseId/lessons/create',
   teacherGachaCards: '/teacher/courses/:courseId/gacha/cards',
 
   courseGacha: '/courses/:courseId/gacha',
