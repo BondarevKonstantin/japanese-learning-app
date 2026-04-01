@@ -14,6 +14,12 @@ import { CreateCoursePage } from '@/pages/teacher/create-course/ui/CreateCourseP
 
 import { TeacherCourseLessonsPage } from '@/pages/teacher/course-lessons/ui/TeacherCourseLessonsPage';
 import { CreateLessonPage } from '@/pages/teacher/create-lesson/ui/CreateLessonPage';
+import { TeacherLessonPracticePage } from '@/pages/teacher/lesson-practice/ui/TeacherLessonPracticePage';
+import { CoursesPage } from '@/pages/courses/ui/CoursesPage';
+import { CoursePage } from '@/pages/course/ui/CoursePage';
+import { LessonPage } from '@/pages/lesson/ui/LessonPage';
+import { EditCoursePage } from '@/pages/teacher/edit-course/ui/EditCoursePage';
+import { EditLessonPage } from '@/pages/teacher/edit-lesson/ui/EditLessonPage';
 
 export const router = createBrowserRouter([
   {
@@ -54,6 +60,18 @@ export const router = createBrowserRouter([
             path: routes.teacherGachaCards,
             element: <TeacherGachaCardsPage />,
           },
+          {
+            path: routes.teacherLessonPractice,
+            element: <TeacherLessonPracticePage />,
+          },
+          {
+            path: routes.teacherEditCourse,
+            element: <EditCoursePage />,
+          },
+          {
+            path: routes.teacherEditLesson,
+            element: <EditLessonPage />,
+          },
         ],
       },
       {
@@ -63,6 +81,18 @@ export const router = createBrowserRouter([
       {
         path: routes.courseCollection,
         element: <GachaCollectionPage />,
+      },
+      {
+        path: routes.courses,
+        element: <CoursesPage />,
+      },
+      {
+        path: routes.course,
+        element: <CoursePage />,
+      },
+      {
+        path: routes.lesson,
+        element: <LessonPage />,
       },
     ],
   },
