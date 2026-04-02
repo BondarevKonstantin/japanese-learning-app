@@ -54,7 +54,7 @@ export const MarkdownRenderer = ({ content }: Props) => {
             <img
               {...props}
               onClick={() => window.open(props.src, '_blank')}
-              className="my-4 w-full max-w-2xl cursor-zoom-in rounded-2xl border border-border transition hover:opacity-90"
+              className="my-4 w-80 max-w-2xl cursor-zoom-in rounded-2xl border border-border transition hover:opacity-90"
             />
           ),
         }}
