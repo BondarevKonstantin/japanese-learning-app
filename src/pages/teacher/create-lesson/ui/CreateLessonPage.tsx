@@ -1,19 +1,26 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { createLesson } from '@/entities/lesson/api/createLesson';
+import { insertMarkdownImageAtCursor } from '@/features/lesson-theory-image-upload/lib/insertMarkdownImageAtCursor';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
+import { uploadLessonTheoryImage } from '@/entities/lesson/api/uploadLessonImage';
 
 export const CreateLessonPage = () => {
   const navigate = useNavigate();
   const { courseId: courseIdParam } = useParams<{ courseId: string }>();
+
+  const theoryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [theoryMarkdown, setTheoryMarkdown] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -42,6 +49,84 @@ export const CreateLessonPage = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const insertImageIntoTextarea = (imageUrl: string) => {
+    const textarea = theoryTextareaRef.current;
+
+    if (!textarea) {
+      setTheoryMarkdown((prev) => `${prev}\n![image](${imageUrl})\n`);
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart ?? theoryMarkdown.length;
+    const selectionEnd = textarea.selectionEnd ?? theoryMarkdown.length;
+
+    const { nextValue, nextCursorPosition } = insertMarkdownImageAtCursor({
+      currentValue: theoryMarkdown,
+      imageUrl,
+      selectionStart,
+      selectionEnd,
+    });
+
+    setTheoryMarkdown(nextValue);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  };
+
+  const handleImageUpload = async (file: File | null) => {
+    if (!courseIdParam || !file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Можно загружать только изображения');
+      return;
+    }
+
+    try {
+      setErrorMessage('');
+      setIsUploadingImage(true);
+
+      const imageUrl = await uploadLessonTheoryImage({
+        file,
+      });
+
+      insertImageIntoTextarea(imageUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить изображение';
+      setErrorMessage(message);
+    } finally {
+      setIsUploadingImage(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleTheoryPaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items?.length) {
+      return;
+    }
+
+    const imageItem = Array.from(items).find((item) => item.type.startsWith('image/'));
+
+    if (!imageItem) {
+      return;
+    }
+
+    const file = imageItem.getAsFile();
+    if (!file) {
+      return;
+    }
+
+    event.preventDefault();
+    await handleImageUpload(file);
   };
 
   if (!courseIdParam) {
@@ -92,24 +177,61 @@ export const CreateLessonPage = () => {
               />
             </label>
 
-            <label className="flex flex-col gap-2">
-              <span className="text-sm font-medium text-text-primary">Теория (markdown)</span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-text-primary">Теория (markdown)</span>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      void handleImageUpload(file);
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    className="rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isUploadingImage ? 'Загрузка...' : 'Загрузить изображение'}
+                  </button>
+                </div>
+              </div>
+
               <textarea
+                ref={theoryTextareaRef}
                 value={theoryMarkdown}
                 onChange={(event) => setTheoryMarkdown(event.target.value)}
+                onPaste={(event) => {
+                  void handleTheoryPaste(event);
+                }}
                 rows={12}
                 className="rounded-2xl border border-border bg-background px-4 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
-                placeholder="# Заголовок
+                placeholder={`# Заголовок
 
-Текст урока..."
+Текст урока...
+
+Можно вставить картинку через Ctrl+V`}
                 required
               />
-            </label>
+
+              <p className="text-sm text-text-secondary">
+                Картинка вставится прямо в текущую позицию курсора в markdown.
+              </p>
+            </div>
 
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={isSubmitting || !title.trim() || !theoryMarkdown.trim()}
+                disabled={
+                  isSubmitting || isUploadingImage || !title.trim() || !theoryMarkdown.trim()
+                }
                 className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? 'Создание...' : 'Создать урок'}

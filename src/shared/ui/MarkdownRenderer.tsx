@@ -50,6 +50,13 @@ export const MarkdownRenderer = ({ content }: Props) => {
           code: ({ children }) => (
             <code className="rounded bg-surface px-1.5 py-0.5 text-sm">{children}</code>
           ),
+          img: ({ ...props }) => (
+            <img
+              {...props}
+              onClick={() => window.open(props.src, '_blank')}
+              className="my-4 w-full max-w-2xl cursor-zoom-in rounded-2xl border border-border transition hover:opacity-90"
+            />
+          ),
         }}
       >
         {content}
