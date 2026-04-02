@@ -8,6 +8,7 @@ import { courseStatusClassMap, courseStatusLabelMap } from '@/entities/course/mo
 import type { Course, CourseStatus } from '@/entities/course/model/types';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
+import { BackButton } from '@/shared/ui/BackButton';
 
 const buildTeacherCourseLessonsRoute = (courseId: string) =>
   routes.teacherCourseLessons.replace(':courseId', courseId);
@@ -78,6 +79,7 @@ export const TeacherCoursesPage = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <BackButton fallbackTo={routes.home} />
             <Link
               to={routes.teacherCreateCourse}
               className="rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"

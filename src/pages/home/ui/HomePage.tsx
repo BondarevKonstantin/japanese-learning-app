@@ -38,10 +38,10 @@ export const HomePage = () => {
           </Link>
 
           <Link
-            to={routes.teacherGachaCards}
+            to={routes.courses}
             className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background"
           >
-            Teacher Gacha
+            Student Courses
           </Link>
         </div>
 

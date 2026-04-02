@@ -7,6 +7,7 @@ import { getPublishedLessonsByCourse } from '@/entities/lesson/api/getPublishedL
 import type { Lesson } from '@/entities/lesson/model/types';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
+import { BackButton } from '@/shared/ui/BackButton';
 
 const buildLessonRoute = (courseId: string, lessonId: string) =>
   routes.lesson.replace(':courseId', courseId).replace(':lessonId', lessonId);
@@ -76,6 +77,7 @@ export const CoursePage = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <BackButton fallbackTo={routes.courses} />
             <Link
               to={routes.courses}
               className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"

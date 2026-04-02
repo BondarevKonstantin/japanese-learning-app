@@ -7,6 +7,7 @@ import { lessonStatusClassMap, lessonStatusLabelMap } from '@/entities/lesson/mo
 import type { Lesson, LessonStatus } from '@/entities/lesson/model/types';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
+import { BackButton } from '@/shared/ui/BackButton';
 
 export const TeacherCourseLessonsPage = () => {
   const { courseId: courseIdParam } = useParams<{ courseId: string }>();
@@ -81,6 +82,7 @@ export const TeacherCourseLessonsPage = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <BackButton fallbackTo={routes.teacherCourses} />
             <Link
               to={createLessonRoute}
               className="rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"

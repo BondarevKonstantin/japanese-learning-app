@@ -5,6 +5,7 @@ import { getPublishedCourses } from '@/entities/course/api/getPublishedCourses';
 import type { Course } from '@/entities/course/model/types';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
+import { BackButton } from '@/shared/ui/BackButton';
 
 const buildCourseRoute = (courseId: string) => routes.course.replace(':courseId', courseId);
 
@@ -40,6 +41,8 @@ export const CoursesPage = () => {
             <h1 className="mt-2 text-3xl font-bold text-text-primary">Курсы</h1>
             <p className="mt-2 text-text-secondary">Выбери курс и начни изучение японского</p>
           </div>
+
+          <BackButton fallbackTo={routes.home} />
 
           <LogoutButton />
         </div>
