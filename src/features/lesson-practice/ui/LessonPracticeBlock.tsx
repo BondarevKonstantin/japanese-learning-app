@@ -12,7 +12,27 @@ type CheckResult = {
   correct: number;
 };
 
-const normalizeValue = (value: string) => value.trim().toLowerCase();
+const normalizeValue = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const getAcceptedAnswers = (item: LessonPracticeItem): string[] => {
+  if (Array.isArray(item.correct_answer)) {
+    return item.correct_answer.map(normalizeValue).filter(Boolean);
+  }
+
+  if (item.type === 'input') {
+    return item.correct_answer.split(/[;；]/).map(normalizeValue).filter(Boolean);
+  }
+
+  return [normalizeValue(item.correct_answer)];
+};
+
+const getDisplayCorrectAnswer = (item: LessonPracticeItem): string => {
+  if (Array.isArray(item.correct_answer)) {
+    return item.correct_answer.join('; ');
+  }
+
+  return item.correct_answer;
+};
 
 export const LessonPracticeBlock = ({ items }: Props) => {
   const [answers, setAnswers] = useState<AnswersState>({});
@@ -33,13 +53,10 @@ export const LessonPracticeBlock = ({ items }: Props) => {
     let correct = 0;
 
     for (const item of items) {
-      const userAnswer = answers[item.id] ?? '';
+      const userAnswer = normalizeValue(answers[item.id] ?? '');
+      const acceptedAnswers = getAcceptedAnswers(item);
 
-      const correctAnswer = Array.isArray(item.correct_answer)
-        ? (item.correct_answer[0] ?? '')
-        : item.correct_answer;
-
-      if (normalizeValue(userAnswer) === normalizeValue(correctAnswer)) {
+      if (acceptedAnswers.includes(userAnswer)) {
         correct += 1;
       }
     }
@@ -65,17 +82,16 @@ export const LessonPracticeBlock = ({ items }: Props) => {
     <div className="flex flex-col gap-4">
       {items.map((item, index) => {
         const userAnswer = answers[item.id] ?? '';
+        const acceptedAnswers = getAcceptedAnswers(item);
+        const displayCorrectAnswer = getDisplayCorrectAnswer(item);
+        const normalizedUserAnswer = normalizeValue(userAnswer);
 
-        const correctAnswer = Array.isArray(item.correct_answer)
-          ? (item.correct_answer[0] ?? '')
-          : item.correct_answer;
-
-        const isCorrect = isChecked && normalizeValue(userAnswer) === normalizeValue(correctAnswer);
+        const isCorrect = isChecked && acceptedAnswers.includes(normalizedUserAnswer);
 
         const isWrong =
           isChecked &&
           userAnswer.trim().length > 0 &&
-          normalizeValue(userAnswer) !== normalizeValue(correctAnswer);
+          !acceptedAnswers.includes(normalizedUserAnswer);
 
         return (
           <div key={item.id} className="rounded-3xl border border-border bg-background p-5">
@@ -125,8 +141,8 @@ export const LessonPracticeBlock = ({ items }: Props) => {
                   {isCorrect
                     ? 'Верно'
                     : isWrong
-                      ? `Неверно. Правильный ответ: ${correctAnswer}`
-                      : `Правильный ответ: ${correctAnswer}`}
+                      ? `Неверно. Правильный ответ: ${displayCorrectAnswer}`
+                      : `Правильный ответ: ${displayCorrectAnswer}`}
                 </p>
 
                 {item.explanation ? (

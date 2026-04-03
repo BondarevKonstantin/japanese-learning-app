@@ -246,10 +246,17 @@ export const TeacherLessonPracticePage = () => {
                   value={correctAnswer}
                   onChange={(event) => setCorrectAnswer(event.target.value)}
                   className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
-                  placeholder="Например, kawaii"
+                  placeholder={type === 'input' ? 'Например, 行く; いく' : 'Например, kawaii'}
                   required
                 />
               </label>
+
+              {type === 'input' ? (
+                <p className="-mt-1 text-sm text-text-secondary">
+                  Если правильных вариантов несколько, разделяй их точкой с запятой. Например: 行く;
+                  いく
+                </p>
+              ) : null}
 
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-text-primary">Пояснение</span>
