@@ -3,9 +3,10 @@ import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types'
 
 type Props = {
   items: LessonPracticeItem[];
+  answers: Record<string, string>;
+  onAnswersChange: (value: Record<string, string>) => void;
+  isReadonly?: boolean;
 };
-
-type AnswersState = Record<string, string>;
 
 type CheckResult = {
   total: number;
@@ -15,6 +16,10 @@ type CheckResult = {
 const normalizeValue = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
 
 const getAcceptedAnswers = (item: LessonPracticeItem): string[] => {
+  if (item.type === 'textarea') {
+    return [];
+  }
+
   if (Array.isArray(item.correct_answer)) {
     return item.correct_answer.map(normalizeValue).filter(Boolean);
   }
@@ -34,15 +39,23 @@ const getDisplayCorrectAnswer = (item: LessonPracticeItem): string => {
   return item.correct_answer;
 };
 
-export const LessonPracticeBlock = ({ items }: Props) => {
-  const [answers, setAnswers] = useState<AnswersState>({});
+export const LessonPracticeBlock = ({
+  items,
+  answers,
+  onAnswersChange,
+  isReadonly = false,
+}: Props) => {
   const [isChecked, setIsChecked] = useState(false);
 
   const handleInputChange = (itemId: string, value: string) => {
-    setAnswers((prev) => ({
-      ...prev,
+    if (isReadonly) {
+      return;
+    }
+
+    onAnswersChange({
+      ...answers,
       [itemId]: value,
-    }));
+    });
   };
 
   const checkResult = useMemo<CheckResult | null>(() => {
@@ -50,9 +63,11 @@ export const LessonPracticeBlock = ({ items }: Props) => {
       return null;
     }
 
+    const autoCheckItems = items.filter((item) => item.type !== 'textarea');
+
     let correct = 0;
 
-    for (const item of items) {
+    for (const item of autoCheckItems) {
       const userAnswer = normalizeValue(answers[item.id] ?? '');
       const acceptedAnswers = getAcceptedAnswers(item);
 
@@ -62,7 +77,7 @@ export const LessonPracticeBlock = ({ items }: Props) => {
     }
 
     return {
-      total: items.length,
+      total: autoCheckItems.length,
       correct,
     };
   }, [answers, isChecked, items]);
@@ -85,10 +100,13 @@ export const LessonPracticeBlock = ({ items }: Props) => {
         const acceptedAnswers = getAcceptedAnswers(item);
         const displayCorrectAnswer = getDisplayCorrectAnswer(item);
         const normalizedUserAnswer = normalizeValue(userAnswer);
+        const isTextarea = item.type === 'textarea';
 
-        const isCorrect = isChecked && acceptedAnswers.includes(normalizedUserAnswer);
+        const isCorrect =
+          !isTextarea && isChecked && acceptedAnswers.includes(normalizedUserAnswer);
 
         const isWrong =
+          !isTextarea &&
           isChecked &&
           userAnswer.trim().length > 0 &&
           !acceptedAnswers.includes(normalizedUserAnswer);
@@ -108,16 +126,28 @@ export const LessonPracticeBlock = ({ items }: Props) => {
                       key={option}
                       type="button"
                       onClick={() => handleInputChange(item.id, option)}
+                      disabled={isReadonly}
                       className={`rounded-2xl border px-4 py-3 text-left transition ${
                         isSelected
                           ? 'border-primary bg-primary-light text-text-primary'
                           : 'border-border bg-surface text-text-primary hover:bg-background'
-                      }`}
+                      } disabled:cursor-not-allowed disabled:opacity-70`}
                     >
                       {option}
                     </button>
                   );
                 })}
+              </div>
+            ) : item.type === 'textarea' ? (
+              <div className="mt-4">
+                <textarea
+                  value={userAnswer}
+                  onChange={(event) => handleInputChange(item.id, event.target.value)}
+                  rows={6}
+                  disabled={isReadonly}
+                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
+                  placeholder="Введите развёрнутый ответ"
+                />
               </div>
             ) : (
               <div className="mt-4">
@@ -125,7 +155,8 @@ export const LessonPracticeBlock = ({ items }: Props) => {
                   type="text"
                   value={userAnswer}
                   onChange={(event) => handleInputChange(item.id, event.target.value)}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
+                  disabled={isReadonly}
+                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Введите ответ"
                 />
               </div>
@@ -135,14 +166,22 @@ export const LessonPracticeBlock = ({ items }: Props) => {
               <div className="mt-4">
                 <p
                   className={`text-sm font-medium ${
-                    isCorrect ? 'text-primary' : isWrong ? 'text-accent' : 'text-text-secondary'
+                    isTextarea
+                      ? 'text-text-secondary'
+                      : isCorrect
+                        ? 'text-primary'
+                        : isWrong
+                          ? 'text-accent'
+                          : 'text-text-secondary'
                   }`}
                 >
-                  {isCorrect
-                    ? 'Верно'
-                    : isWrong
-                      ? `Неверно. Правильный ответ: ${displayCorrectAnswer}`
-                      : `Правильный ответ: ${displayCorrectAnswer}`}
+                  {isTextarea
+                    ? 'Этот ответ будет проверен учителем'
+                    : isCorrect
+                      ? 'Верно'
+                      : isWrong
+                        ? `Неверно. Правильный ответ: ${displayCorrectAnswer}`
+                        : `Правильный ответ: ${displayCorrectAnswer}`}
                 </p>
 
                 {item.explanation ? (
@@ -167,10 +206,11 @@ export const LessonPracticeBlock = ({ items }: Props) => {
           <button
             type="button"
             onClick={() => {
-              setAnswers({});
+              onAnswersChange({});
               setIsChecked(false);
             }}
-            className="rounded-2xl border border-border bg-background px-5 py-3 font-medium text-text-primary transition hover:bg-surface"
+            disabled={isReadonly}
+            className="rounded-2xl border border-border bg-background px-5 py-3 font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-70"
           >
             Сбросить
           </button>
@@ -179,6 +219,9 @@ export const LessonPracticeBlock = ({ items }: Props) => {
         {checkResult ? (
           <p className="mt-4 text-sm text-text-secondary">
             Результат: {checkResult.correct} / {checkResult.total}
+            {items.some((item) => item.type === 'textarea')
+              ? ' · Задания со свободным ответом проверяются отдельно учителем'
+              : ''}
           </p>
         ) : null}
       </div>

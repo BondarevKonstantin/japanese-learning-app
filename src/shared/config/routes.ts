@@ -17,7 +17,13 @@ export const routes = {
   courses: '/courses',
   course: '/courses/:courseId',
   lesson: '/courses/:courseId/lessons/:lessonId',
+  lessonResults: '/courses/:courseId/lessons/:lessonId/results',
 
   courseGacha: '/courses/:courseId/gacha',
   courseCollection: '/courses/:courseId/collection',
+
+  teacherLessonSubmissions: '/teacher/courses/:courseId/lessons/:lessonId/submissions',
+
+  teacherLessonSubmissionReview:
+    '/teacher/courses/:courseId/lessons/:lessonId/submissions/:submissionId',
 } as const;

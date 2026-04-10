@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
@@ -7,11 +7,13 @@ import type { Lesson } from '@/entities/lesson/model/types';
 import { getLessonPracticeItems } from '@/entities/lesson-practice/api/getLessonPracticeItems';
 import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
 import { completeLesson } from '@/features/lesson/api/completeLesson';
-import { getLessonCompletionStatus } from '@/features/lesson/api/getLessonCompletionStatus';
+import { getMyLessonSubmission } from '@/features/lesson-submission/api/getMyLessonSubmission';
+import { submitLessonAnswers } from '@/features/lesson-submission/api/submitLessonAnswers';
 import { LessonPracticeBlock } from '@/features/lesson-practice/ui/LessonPracticeBlock';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { MarkdownRenderer } from '@/shared/ui/MarkdownRenderer';
+import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
 
 export const LessonPage = () => {
   const { user } = useAuth();
@@ -22,7 +24,9 @@ export const LessonPage = () => {
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [practiceItems, setPracticeItems] = useState<LessonPracticeItem[]>([]);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [practiceAnswers, setPracticeAnswers] = useState<Record<string, string>>({});
+  const [submission, setSubmission] = useState<LessonSubmission | null>(null);
+
   const [completionMessage, setCompletionMessage] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -46,15 +50,15 @@ export const LessonPage = () => {
       setErrorMessage('');
 
       try {
-        const [nextLesson, nextPracticeItems, completionStatus] = await Promise.all([
+        const [nextLesson, nextPracticeItems, nextSubmission] = await Promise.all([
           getPublishedLessonById(lessonIdParam),
           getLessonPracticeItems(lessonIdParam),
-          getLessonCompletionStatus(lessonIdParam, user.id),
+          getMyLessonSubmission(lessonIdParam),
         ]);
 
         setLesson(nextLesson);
         setPracticeItems(nextPracticeItems);
-        setIsCompleted(completionStatus.isCompleted);
+        setSubmission(nextSubmission);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Не удалось загрузить урок';
         setErrorMessage(message);
@@ -66,15 +70,27 @@ export const LessonPage = () => {
     void loadLessonPage();
   }, [lessonIdParam, user?.id]);
 
-  if (!courseIdParam || !lessonIdParam) {
-    return (
-      <AppLayout disableOverflowHidden>
-        <div className="p-6 text-accent">Course id или lesson id не найден</div>
-      </AppLayout>
-    );
-  }
+  const backToCourseRoute = useMemo(() => {
+    if (!courseIdParam) {
+      return routes.courses;
+    }
 
-  const backToCourseRoute = routes.course.replace(':courseId', courseIdParam);
+    return routes.course.replace(':courseId', courseIdParam);
+  }, [courseIdParam]);
+
+  const resultsRoute = useMemo(() => {
+    if (!courseIdParam || !lessonIdParam) {
+      return routes.courses;
+    }
+
+    return routes.lessonResults
+      .replace(':courseId', courseIdParam)
+      .replace(':lessonId', lessonIdParam);
+  }, [courseIdParam, lessonIdParam]);
+
+  const hasSubmission = submission !== null;
+  const isReviewed = submission?.status === 'reviewed';
+  const isSubmitted = submission?.status === 'submitted';
 
   const handleCompleteLesson = async () => {
     if (!lessonIdParam) {
@@ -87,11 +103,38 @@ export const LessonPage = () => {
     setIsCompleting(true);
 
     try {
+      const answersPayload = practiceItems.map((item) => ({
+        practiceItemId: item.id,
+        answerText: practiceAnswers[item.id] ?? '',
+      }));
+
+      const hasAnyAnswer = answersPayload.some((item) => item.answerText.trim().length > 0);
+
+      let nextSubmission: LessonSubmission | null = submission;
+
+      if (practiceItems.length > 0 && hasAnyAnswer) {
+        await submitLessonAnswers({
+          lessonId: lessonIdParam,
+          answers: answersPayload,
+        });
+
+        nextSubmission = await getMyLessonSubmission(lessonIdParam);
+        setSubmission(nextSubmission);
+      }
+
       const result = await completeLesson(lessonIdParam);
 
-      setIsCompleted(true);
-
-      if (result.completed_now) {
+      if (nextSubmission?.status === 'reviewed') {
+        setCompletionMessage('Урок уже проверен. Можно перейти к результатам.');
+      } else if (nextSubmission?.status === 'submitted') {
+        if (result.completed_now) {
+          setCompletionMessage(
+            `Урок завершён. Ответы отправлены учителю. Начислено ${result.reward_amount} круток.`,
+          );
+        } else {
+          setCompletionMessage('Этот урок уже был завершён ранее. Ответы отправлены учителю.');
+        }
+      } else if (result.completed_now) {
         setCompletionMessage(`Урок завершён. Начислено ${result.reward_amount} круток.`);
       } else {
         setCompletionMessage('Этот урок уже был завершён ранее.');
@@ -103,6 +146,14 @@ export const LessonPage = () => {
       setIsCompleting(false);
     }
   };
+
+  if (!courseIdParam || !lessonIdParam) {
+    return (
+      <AppLayout disableOverflowHidden>
+        <div className="p-6 text-accent">Course id или lesson id не найден</div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout disableOverflowHidden>
@@ -138,6 +189,32 @@ export const LessonPage = () => {
           <p className="mt-8 rounded-2xl border border-primary bg-primary-light px-4 py-3 text-sm text-text-primary">
             {completionMessage}
           </p>
+        ) : null}
+
+        {hasSubmission ? (
+          <div className="mt-8 rounded-3xl border border-border bg-surface p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">Статус проверки</h2>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {isReviewed
+                    ? 'Учитель уже проверил этот урок. Можно посмотреть результаты.'
+                    : isSubmitted
+                      ? 'Ответы отправлены учителю и ждут проверки.'
+                      : 'Статус работы обновляется.'}
+                </p>
+              </div>
+
+              {isReviewed ? (
+                <Link
+                  to={resultsRoute}
+                  className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
+                >
+                  Посмотреть результаты
+                </Link>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         {isLoading ? (
@@ -185,7 +262,12 @@ export const LessonPage = () => {
               </div>
 
               <div className="mt-6">
-                <LessonPracticeBlock items={practiceItems} />
+                <LessonPracticeBlock
+                  items={practiceItems}
+                  answers={practiceAnswers}
+                  onAnswersChange={setPracticeAnswers}
+                  isReadonly={isSubmitted || isReviewed}
+                />
               </div>
 
               <div className="mt-8 rounded-3xl border border-border bg-background p-5">
@@ -194,21 +276,33 @@ export const LessonPage = () => {
                     <h3 className="text-lg font-semibold text-text-primary">Завершение урока</h3>
                     <p className="mt-1 text-sm text-text-secondary">
                       После завершения урока ты получишь 10 круток для гачи курса.
+                      {practiceItems.length > 0
+                        ? ' Если заполнить практику, ответы будут отправлены учителю на проверку.'
+                        : ''}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleCompleteLesson}
-                    disabled={isCompleting || isCompleted}
-                    className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isCompleted
-                      ? 'Урок завершён'
-                      : isCompleting
-                        ? 'Завершаем...'
-                        : 'Завершить урок'}
-                  </button>
+                  {isReviewed ? (
+                    <Link
+                      to={resultsRoute}
+                      className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
+                    >
+                      Посмотреть результаты
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCompleteLesson}
+                      disabled={isCompleting || isSubmitted}
+                      className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSubmitted
+                        ? 'Ответы уже отправлены'
+                        : isCompleting
+                          ? 'Завершаем...'
+                          : 'Завершить урок'}
+                    </button>
+                  )}
                 </div>
               </div>
             </section>

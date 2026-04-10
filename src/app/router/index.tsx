@@ -11,13 +11,15 @@ import { TeacherGachaCardsPage } from '@/pages/teacher/gacha-cards/ui/TeacherGac
 import { GachaPage } from '@/pages/gacha/ui/GachaPage';
 import { GachaCollectionPage } from '@/pages/gacha-collection/ui/GachaCollectionPage';
 import { CreateCoursePage } from '@/pages/teacher/create-course/ui/CreateCoursePage';
-
 import { TeacherCourseLessonsPage } from '@/pages/teacher/course-lessons/ui/TeacherCourseLessonsPage';
 import { CreateLessonPage } from '@/pages/teacher/create-lesson/ui/CreateLessonPage';
 import { TeacherLessonPracticePage } from '@/pages/teacher/lesson-practice/ui/TeacherLessonPracticePage';
+import { TeacherLessonSubmissionsPage } from '@/pages/teacher/lesson-submissions/ui/TeacherLessonSubmissionsPage';
+import { TeacherLessonSubmissionReviewPage } from '@/pages/teacher/lesson-submission-review/ui/TeacherLessonSubmissionReviewPage';
 import { CoursesPage } from '@/pages/courses/ui/CoursesPage';
 import { CoursePage } from '@/pages/course/ui/CoursePage';
 import { LessonPage } from '@/pages/lesson/ui/LessonPage';
+import { LessonResultsPage } from '@/pages/lesson-results/ui/LessonResultsPage';
 import { EditCoursePage } from '@/pages/teacher/edit-course/ui/EditCoursePage';
 import { EditLessonPage } from '@/pages/teacher/edit-lesson/ui/EditLessonPage';
 
@@ -65,6 +67,14 @@ export const router = createBrowserRouter([
             element: <TeacherLessonPracticePage />,
           },
           {
+            path: routes.teacherLessonSubmissions,
+            element: <TeacherLessonSubmissionsPage />,
+          },
+          {
+            path: routes.teacherLessonSubmissionReview,
+            element: <TeacherLessonSubmissionReviewPage />,
+          },
+          {
             path: routes.teacherEditCourse,
             element: <EditCoursePage />,
           },
@@ -93,6 +103,10 @@ export const router = createBrowserRouter([
       {
         path: routes.lesson,
         element: <LessonPage />,
+      },
+      {
+        path: routes.lessonResults,
+        element: <LessonResultsPage />,
       },
     ],
   },

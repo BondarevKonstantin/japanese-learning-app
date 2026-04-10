@@ -1,16 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getPublishedCourseById } from '@/entities/course/api/getPublishedCourseById';
 import type { Course } from '@/entities/course/model/types';
 import { getPublishedLessonsByCourse } from '@/entities/lesson/api/getPublishedLessonsByCourse';
 import type { Lesson } from '@/entities/lesson/model/types';
+import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
+import { supabase } from '@/shared/api/supabase/client';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { BackButton } from '@/shared/ui/BackButton';
 
 const buildLessonRoute = (courseId: string, lessonId: string) =>
   routes.lesson.replace(':courseId', courseId).replace(':lessonId', lessonId);
+
+const buildLessonResultsRoute = (courseId: string, lessonId: string) =>
+  routes.lessonResults.replace(':courseId', courseId).replace(':lessonId', lessonId);
 
 const buildCourseGachaRoute = (courseId: string) =>
   routes.courseGacha.replace(':courseId', courseId);
@@ -23,6 +29,7 @@ export const CoursePage = () => {
 
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [submissionsMap, setSubmissionsMap] = useState<Record<string, LessonSubmission>>({});
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -45,6 +52,23 @@ export const CoursePage = () => {
 
         setCourse(nextCourse);
         setLessons(nextLessons);
+
+        const { data: submissions, error } = await supabase
+          .from('lesson_submissions')
+          .select('*')
+          .eq('course_id', courseIdParam);
+
+        if (error) {
+          throw error;
+        }
+
+        const map: Record<string, LessonSubmission> = {};
+
+        (submissions ?? []).forEach((submission) => {
+          map[submission.lesson_id] = submission;
+        });
+
+        setSubmissionsMap(map);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Не удалось загрузить курс';
         setErrorMessage(message);
@@ -78,6 +102,7 @@ export const CoursePage = () => {
 
           <div className="flex items-center gap-3">
             <BackButton fallbackTo={routes.courses} />
+
             <Link
               to={routes.courses}
               className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
@@ -107,38 +132,64 @@ export const CoursePage = () => {
             ) : lessons.length === 0 ? (
               <div className="mt-6 rounded-3xl border border-dashed border-border bg-background p-8 text-center">
                 <p className="text-text-primary">У этого курса пока нет доступных уроков.</p>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Когда преподаватель опубликует уроки, они появятся здесь
-                </p>
               </div>
             ) : (
               <div className="mt-6 min-h-0 flex-1 overflow-auto pr-2">
                 <div className="grid gap-4">
-                  {lessons.map((lesson, index) => (
-                    <div
-                      key={lesson.id}
-                      className="rounded-3xl border border-border bg-background p-5"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-sm text-text-secondary">Урок {index + 1}</p>
-                          <h3 className="mt-1 text-xl font-semibold text-text-primary">
-                            {lesson.title}
-                          </h3>
-                          <p className="mt-2 text-sm text-text-secondary">
-                            {lesson.description?.trim() || 'Без описания'}
-                          </p>
-                        </div>
+                  {lessons.map((lesson, index) => {
+                    const submission = submissionsMap[lesson.id];
 
-                        <Link
-                          to={buildLessonRoute(courseIdParam, lesson.id)}
-                          className="shrink-0 rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"
-                        >
-                          Открыть
-                        </Link>
+                    const isSubmitted = submission?.status === 'submitted';
+                    const isReviewed = submission?.status === 'reviewed';
+
+                    return (
+                      <div
+                        key={lesson.id}
+                        className="rounded-3xl border border-border bg-background p-5"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="text-sm text-text-secondary">Урок {index + 1}</p>
+
+                            <h3 className="mt-1 text-xl font-semibold text-text-primary">
+                              {lesson.title}
+                            </h3>
+
+                            <p className="mt-2 text-sm text-text-secondary">
+                              {lesson.description?.trim() || 'Без описания'}
+                            </p>
+
+                            {submission ? (
+                              <p className="mt-3 text-sm text-text-secondary">
+                                Статус:{' '}
+                                <span className="text-text-primary">
+                                  {isReviewed ? 'Проверено' : isSubmitted ? 'На проверке' : '—'}
+                                </span>
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex shrink-0 gap-2">
+                            {isReviewed ? (
+                              <Link
+                                to={buildLessonResultsRoute(courseIdParam, lesson.id)}
+                                className="rounded-2xl border border-border px-4 py-3 text-sm font-medium text-text-primary transition hover:bg-surface"
+                              >
+                                Результаты
+                              </Link>
+                            ) : null}
+
+                            <Link
+                              to={buildLessonRoute(courseIdParam, lesson.id)}
+                              className="rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"
+                            >
+                              Открыть
+                            </Link>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

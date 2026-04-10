@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
@@ -12,12 +12,14 @@ import type {
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
+import { routes } from '@/shared/config/routes';
 
-const typeOptions: LessonPracticeItemType[] = ['multiple_choice', 'input'];
+const typeOptions: LessonPracticeItemType[] = ['multiple_choice', 'input', 'textarea'];
 
 const typeLabelMap: Record<LessonPracticeItemType, string> = {
   multiple_choice: 'Выбор варианта',
   input: 'Ввод ответа',
+  textarea: 'Свободный ответ',
 };
 
 export const TeacherLessonPracticePage = () => {
@@ -70,6 +72,16 @@ export const TeacherLessonPracticePage = () => {
     void loadData();
   }, [lessonIdParam]);
 
+  const submissionsRoute = useMemo(() => {
+    if (!courseIdParam || !lessonIdParam) {
+      return routes.teacherCourses;
+    }
+
+    return routes.teacherLessonSubmissions
+      .replace(':courseId', courseIdParam)
+      .replace(':lessonId', lessonIdParam);
+  }, [courseIdParam, lessonIdParam]);
+
   if (!courseIdParam || !lessonIdParam) {
     return (
       <AppLayout>
@@ -104,7 +116,7 @@ export const TeacherLessonPracticePage = () => {
       return;
     }
 
-    if (!correctAnswer.trim()) {
+    if (type !== 'textarea' && !correctAnswer.trim()) {
       setErrorMessage('Укажи правильный ответ');
       return;
     }
@@ -119,7 +131,7 @@ export const TeacherLessonPracticePage = () => {
           type,
           question: question.trim(),
           options: normalizedOptions,
-          correctAnswer: correctAnswer.trim(),
+          correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
         });
       } else {
@@ -128,7 +140,7 @@ export const TeacherLessonPracticePage = () => {
           type,
           question: question.trim(),
           options: normalizedOptions,
-          correctAnswer: correctAnswer.trim(),
+          correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
         });
       }
@@ -164,7 +176,7 @@ export const TeacherLessonPracticePage = () => {
     setQuestion(item.question);
     setOptionsText(item.options?.join('\n') ?? '');
     setCorrectAnswer(
-      Array.isArray(item.correct_answer) ? (item.correct_answer[0] ?? '') : item.correct_answer,
+      Array.isArray(item.correct_answer) ? item.correct_answer.join('; ') : item.correct_answer,
     );
     setExplanation(item.explanation ?? '');
   };
@@ -190,7 +202,16 @@ export const TeacherLessonPracticePage = () => {
             </p>
           </div>
 
-          <LogoutButton />
+          <div className="flex items-center gap-3">
+            <Link
+              to={submissionsRoute}
+              className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
+            >
+              Проверка работ
+            </Link>
+
+            <LogoutButton />
+          </div>
         </div>
 
         <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[380px_1fr]">
@@ -220,7 +241,11 @@ export const TeacherLessonPracticePage = () => {
                   onChange={(event) => setQuestion(event.target.value)}
                   rows={4}
                   className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
-                  placeholder="Например, Как читается かわいい?"
+                  placeholder={
+                    type === 'textarea'
+                      ? 'Например, Напиши небольшое сочинение о своём дне'
+                      : 'Например, Как читается かわいい?'
+                  }
                   required
                 />
               </label>
@@ -239,24 +264,33 @@ export const TeacherLessonPracticePage = () => {
                 </label>
               ) : null}
 
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-text-primary">Правильный ответ</span>
-                <input
-                  type="text"
-                  value={correctAnswer}
-                  onChange={(event) => setCorrectAnswer(event.target.value)}
-                  className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
-                  placeholder={type === 'input' ? 'Например, 行く; いく' : 'Например, kawaii'}
-                  required
-                />
-              </label>
+              {type !== 'textarea' ? (
+                <>
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-medium text-text-primary">Правильный ответ</span>
+                    <input
+                      type="text"
+                      value={correctAnswer}
+                      onChange={(event) => setCorrectAnswer(event.target.value)}
+                      className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
+                      placeholder={type === 'input' ? 'Например, 行く; いく' : 'Например, kawaii'}
+                      required
+                    />
+                  </label>
 
-              {type === 'input' ? (
-                <p className="-mt-1 text-sm text-text-secondary">
-                  Если правильных вариантов несколько, разделяй их точкой с запятой. Например: 行く;
-                  いく
-                </p>
-              ) : null}
+                  {type === 'input' ? (
+                    <p className="-mt-1 text-sm text-text-secondary">
+                      Если правильных вариантов несколько, разделяй их точкой с запятой.
+                      Поддерживаются оба варианта: ; и ；
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <div className="rounded-2xl border border-border bg-background px-4 py-3 text-sm text-text-secondary">
+                  Для задания со свободным ответом правильный ответ не нужен. Его учитель проверяет
+                  вручную.
+                </div>
+              )}
 
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-text-primary">Пояснение</span>
@@ -343,9 +377,13 @@ export const TeacherLessonPracticePage = () => {
 
                           <p className="mt-3 text-sm text-text-secondary">
                             Правильный ответ:{' '}
-                            {Array.isArray(item.correct_answer)
-                              ? item.correct_answer.join(', ')
-                              : item.correct_answer}
+                            <span className="text-text-primary">
+                              {item.type === 'textarea'
+                                ? 'Проверяется вручную'
+                                : Array.isArray(item.correct_answer)
+                                  ? item.correct_answer.join('; ')
+                                  : item.correct_answer || '—'}
+                            </span>
                           </p>
 
                           {item.explanation ? (
@@ -354,6 +392,7 @@ export const TeacherLessonPracticePage = () => {
                             </p>
                           ) : null}
                         </div>
+
                         <div className="flex shrink-0 gap-2">
                           <button
                             type="button"

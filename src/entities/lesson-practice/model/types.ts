@@ -1,4 +1,4 @@
-export type LessonPracticeItemType = 'multiple_choice' | 'input';
+export type LessonPracticeItemType = 'multiple_choice' | 'input' | 'textarea';
 
 export type LessonPracticeItem = {
   id: string;
