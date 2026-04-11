@@ -11,6 +11,7 @@ type PracticeItemRow = {
   question: string;
   correct_answer: string | string[];
   explanation: string | null;
+  image_url: string | null;
   order_index: number;
 };
 
@@ -71,6 +72,7 @@ export const getLessonSubmissionById = async (
           question,
           correct_answer,
           explanation,
+          image_url,
           order_index
         )
       `,
@@ -102,6 +104,7 @@ export const getLessonSubmissionById = async (
         question: practiceItem.question,
         correct_answer: practiceItem.correct_answer,
         explanation: practiceItem.explanation,
+        image_url: practiceItem.image_url,
         order_index: practiceItem.order_index,
       };
     })

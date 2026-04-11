@@ -34,6 +34,7 @@ export type LessonResultItem = {
   question: string;
   correct_answer: string | string[];
   explanation: string | null;
+  image_url: string | null;
   answer_id: string;
   answer_text: string | null;
   is_auto_correct: boolean | null;
@@ -53,6 +54,7 @@ export type TeacherLessonSubmissionReviewItem = {
   question: string;
   correct_answer: string | string[];
   explanation: string | null;
+  image_url: string | null;
   order_index: number;
 };
 

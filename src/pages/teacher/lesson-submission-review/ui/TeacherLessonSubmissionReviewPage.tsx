@@ -208,6 +208,16 @@ export const TeacherLessonSubmissionReviewPage = () => {
                       {item.question}
                     </h3>
 
+                    {item.image_url ? (
+                      <div className="mt-4">
+                        <img
+                          src={item.image_url}
+                          alt={`Иллюстрация к заданию ${index + 1}`}
+                          className="max-h-[360px] w-full max-w-2xl rounded-2xl border border-border object-contain"
+                        />
+                      </div>
+                    ) : null}
+
                     <div className="mt-4 grid gap-2 text-sm">
                       <p className="text-text-secondary">
                         Ответ ученика:{' '}

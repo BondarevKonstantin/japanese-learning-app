@@ -8,6 +8,7 @@ export type LessonPracticeItem = {
   options: string[] | null;
   correct_answer: string | string[];
   explanation: string | null;
+  image_url: string | null;
   order_index: number;
   created_at: string;
 };

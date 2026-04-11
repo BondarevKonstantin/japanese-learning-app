@@ -11,6 +11,7 @@ type UpdateLessonPracticeItemParams = {
   options: string[] | null;
   correctAnswer: string | string[];
   explanation: string;
+  imageUrl: string | null;
 };
 
 export const updateLessonPracticeItem = async ({
@@ -20,6 +21,7 @@ export const updateLessonPracticeItem = async ({
   options,
   correctAnswer,
   explanation,
+  imageUrl,
 }: UpdateLessonPracticeItemParams): Promise<LessonPracticeItem> => {
   const { data, error } = await supabase
     .from('lesson_practice_items')
@@ -29,6 +31,7 @@ export const updateLessonPracticeItem = async ({
       options,
       correct_answer: correctAnswer,
       explanation: explanation.trim() || null,
+      image_url: imageUrl,
     })
     .eq('id', itemId)
     .select('*')

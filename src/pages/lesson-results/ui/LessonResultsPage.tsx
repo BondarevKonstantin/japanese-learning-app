@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getPublishedLessonById } from '@/entities/lesson/api/getPublishedLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
@@ -125,6 +126,16 @@ export const LessonResultsPage = () => {
                 >
                   <p className="text-sm text-text-secondary">Задание {index + 1}</p>
                   <h3 className="mt-2 text-lg font-semibold text-text-primary">{item.question}</h3>
+
+                  {item.image_url ? (
+                    <div className="mt-4">
+                      <img
+                        src={item.image_url}
+                        alt={`Иллюстрация к заданию ${index + 1}`}
+                        className="max-h-[360px] w-full max-w-2xl rounded-2xl border border-border object-contain"
+                      />
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 grid gap-2 text-sm">
                     <p className="text-text-secondary">

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
@@ -11,6 +12,7 @@ import type {
   LessonPracticeItem,
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
+import { uploadPracticeItemImage } from '@/entities/lesson-practice/api/uploadPracticeItemImage';
 import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
@@ -28,6 +30,8 @@ export const TeacherLessonPracticePage = () => {
     lessonId: string;
   }>();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [items, setItems] = useState<LessonPracticeItem[]>([]);
 
@@ -36,11 +40,13 @@ export const TeacherLessonPracticePage = () => {
   const [optionsText, setOptionsText] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [explanation, setExplanation] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -100,6 +106,38 @@ export const TeacherLessonPracticePage = () => {
     }
   };
 
+  const handleImageUpload = async (file: File | null) => {
+    if (!lessonIdParam || !file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Можно загружать только изображения');
+      return;
+    }
+
+    try {
+      setErrorMessage('');
+      setIsUploadingImage(true);
+
+      const nextImageUrl = await uploadPracticeItemImage({
+        file,
+        lessonId: lessonIdParam,
+      });
+
+      setImageUrl(nextImageUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить изображение';
+      setErrorMessage(message);
+    } finally {
+      setIsUploadingImage(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -133,6 +171,7 @@ export const TeacherLessonPracticePage = () => {
           options: normalizedOptions,
           correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
+          imageUrl,
         });
       } else {
         await createLessonPracticeItem({
@@ -142,6 +181,7 @@ export const TeacherLessonPracticePage = () => {
           options: normalizedOptions,
           correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
+          imageUrl,
         });
       }
 
@@ -179,6 +219,7 @@ export const TeacherLessonPracticePage = () => {
       Array.isArray(item.correct_answer) ? item.correct_answer.join('; ') : item.correct_answer,
     );
     setExplanation(item.explanation ?? '');
+    setImageUrl(item.image_url ?? null);
   };
 
   const resetForm = () => {
@@ -188,6 +229,7 @@ export const TeacherLessonPracticePage = () => {
     setOptionsText('');
     setCorrectAnswer('');
     setExplanation('');
+    setImageUrl(null);
   };
 
   return (
@@ -214,7 +256,7 @@ export const TeacherLessonPracticePage = () => {
           </div>
         </div>
 
-        <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[380px_1fr]">
+        <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[420px_1fr]">
           <div className="flex h-full flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-text-primary">Добавить задание</h2>
 
@@ -249,6 +291,60 @@ export const TeacherLessonPracticePage = () => {
                   required
                 />
               </label>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-text-primary">
+                    Изображение к вопросу
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        void handleImageUpload(file);
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploadingImage}
+                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isUploadingImage ? 'Загрузка...' : 'Загрузить фото'}
+                    </button>
+
+                    {imageUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl(null)}
+                        className="rounded-2xl border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:bg-secondary"
+                      >
+                        Удалить
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <p className="text-sm text-text-secondary">
+                  Одна фотография на вопрос, необязательно.
+                </p>
+
+                {imageUrl ? (
+                  <div className="mt-2">
+                    <img
+                      src={imageUrl}
+                      alt="Превью изображения вопроса"
+                      className="max-h-[260px] w-full rounded-2xl border border-border object-contain"
+                    />
+                  </div>
+                ) : null}
+              </div>
 
               {type === 'multiple_choice' ? (
                 <label className="flex flex-col gap-2">
@@ -307,7 +403,7 @@ export const TeacherLessonPracticePage = () => {
 
               <button
                 type="submit"
-                disabled={isSubmitting || !question.trim()}
+                disabled={isSubmitting || isUploadingImage || !question.trim()}
                 className="mt-2 rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting
@@ -360,7 +456,18 @@ export const TeacherLessonPracticePage = () => {
                           <p className="text-sm text-text-secondary">
                             Задание {index + 1} · {typeLabelMap[item.type]}
                           </p>
+
                           <h3 className="mt-1 font-semibold text-text-primary">{item.question}</h3>
+
+                          {item.image_url ? (
+                            <div className="mt-3">
+                              <img
+                                src={item.image_url}
+                                alt={`Иллюстрация к заданию ${index + 1}`}
+                                className="max-h-[220px] w-full max-w-xl rounded-2xl border border-border object-contain"
+                              />
+                            </div>
+                          ) : null}
 
                           {item.type === 'multiple_choice' && item.options?.length ? (
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -401,6 +508,7 @@ export const TeacherLessonPracticePage = () => {
                           >
                             Редактировать
                           </button>
+
                           <button
                             type="button"
                             onClick={() => handleDelete(item.id)}

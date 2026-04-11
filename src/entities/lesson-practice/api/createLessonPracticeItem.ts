@@ -11,6 +11,7 @@ type CreateLessonPracticeItemParams = {
   options: string[] | null;
   correctAnswer: string | string[];
   explanation: string;
+  imageUrl: string | null;
 };
 
 export const createLessonPracticeItem = async ({
@@ -20,6 +21,7 @@ export const createLessonPracticeItem = async ({
   options,
   correctAnswer,
   explanation,
+  imageUrl,
 }: CreateLessonPracticeItemParams): Promise<LessonPracticeItem> => {
   const { data: items, error: orderError } = await supabase
     .from('lesson_practice_items')
@@ -43,6 +45,7 @@ export const createLessonPracticeItem = async ({
       options,
       correct_answer: correctAnswer,
       explanation: explanation.trim() || null,
+      image_url: imageUrl,
       order_index: nextOrderIndex,
     })
     .select('*')
