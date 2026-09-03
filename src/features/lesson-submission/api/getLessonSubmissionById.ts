@@ -4,6 +4,7 @@ import type {
   TeacherLessonSubmissionDetails,
   TeacherLessonSubmissionReviewItem,
 } from '@/entities/lesson-submission/model/types';
+import { getProfile } from '@/entities/user/api/getProfile';
 
 type PracticeItemRow = {
   id: string;
@@ -56,10 +57,12 @@ export const getLessonSubmissionById = async (
     throw new Error('Работа не найдена');
   }
 
-  const { data: answerRows, error: answersError } = await supabase
-    .from('lesson_submission_answers')
-    .select(
-      `
+  const [studentProfile, answersResult] = await Promise.all([
+    getProfile(submission.user_id),
+    supabase
+      .from('lesson_submission_answers')
+      .select(
+        `
         id,
         submission_id,
         practice_item_id,
@@ -76,14 +79,15 @@ export const getLessonSubmissionById = async (
           order_index
         )
       `,
-    )
-    .eq('submission_id', submissionId);
+      )
+      .eq('submission_id', submissionId),
+  ]);
 
-  if (answersError) {
-    throw answersError;
+  if (answersResult.error) {
+    throw answersResult.error;
   }
 
-  const normalizedRows = (answerRows ?? []) as unknown as SubmissionAnswerRow[];
+  const normalizedRows = (answersResult.data ?? []) as unknown as SubmissionAnswerRow[];
 
   const answers: TeacherLessonSubmissionReviewItem[] = normalizedRows
     .map((row) => {
@@ -113,6 +117,12 @@ export const getLessonSubmissionById = async (
 
   return {
     submission: submission as LessonSubmission,
+    student_profile: studentProfile
+      ? {
+          display_name: studentProfile.display_name,
+          email: studentProfile.email,
+        }
+      : null,
     answers,
   };
 };

@@ -14,6 +14,10 @@ export const submitLessonAnswers = async ({
   lessonId,
   answers,
 }: SubmitLessonAnswersParams): Promise<string> => {
+  if (answers.some((answer) => !answer.answerText.trim())) {
+    throw new Error('Перед отправкой нужно заполнить все задания.');
+  }
+
   const { data, error } = await supabase.rpc('submit_lesson_answers', {
     p_lesson_id: lessonId,
     p_answers: answers.map((item) => ({

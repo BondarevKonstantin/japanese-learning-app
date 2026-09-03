@@ -37,13 +37,10 @@ export const TeacherGachaCardsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const loadCards = useCallback(async () => {
-    setErrorMessage('');
-
-    if (!courseId) return;
-
+  const loadCards = useCallback(async (targetCourseId: string) => {
     try {
-      const nextCards = await getGachaCardsByCourse(courseId);
+      const nextCards = await getGachaCardsByCourse(targetCourseId);
+      setErrorMessage('');
       setCards(nextCards);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось загрузить карты';
@@ -51,11 +48,17 @@ export const TeacherGachaCardsPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [courseId]);
+  }, []);
 
   useEffect(() => {
-    void loadCards();
-  }, [loadCards]);
+    if (!courseId) {
+      return;
+    }
+
+    // State updates happen after the asynchronous Supabase request completes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadCards(courseId);
+  }, [courseId, loadCards]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -83,7 +86,7 @@ export const TeacherGachaCardsPage = () => {
       setImageUrl('');
       setRarity('common');
 
-      await loadCards();
+      await loadCards(courseId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось создать карту';
       setErrorMessage(message);
@@ -93,9 +96,11 @@ export const TeacherGachaCardsPage = () => {
   };
 
   const handleDelete = async (cardId: string) => {
+    if (!courseId) return;
+
     try {
       await deleteGachaCard(cardId);
-      await loadCards();
+      await loadCards(courseId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось удалить карту';
       setErrorMessage(message);

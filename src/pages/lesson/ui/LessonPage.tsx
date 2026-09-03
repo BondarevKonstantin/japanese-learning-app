@@ -50,7 +50,7 @@ export const LessonPage = () => {
       setErrorMessage('');
 
       try {
-        const [nextLesson, nextPracticeItems, nextSubmission] = await Promise.all([
+        const [nextLesson, nextPracticeItems, nextSubmissionDetails] = await Promise.all([
           getPublishedLessonById(lessonIdParam),
           getLessonPracticeItems(lessonIdParam),
           getMyLessonSubmission(lessonIdParam),
@@ -58,9 +58,23 @@ export const LessonPage = () => {
 
         setLesson(nextLesson);
         setPracticeItems(nextPracticeItems);
-        setSubmission(nextSubmission);
+        setSubmission(nextSubmissionDetails?.submission ?? null);
+        setPracticeAnswers(
+          (nextSubmissionDetails?.answers ?? []).reduce<Record<string, string>>((acc, answer) => {
+            acc[answer.practice_item_id] = answer.answer_text ?? '';
+            return acc;
+          }, {}),
+        );
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Не удалось загрузить урок';
+        const message =
+          error instanceof Error
+            ? error.message
+            : typeof error === 'object' &&
+                error !== null &&
+                'message' in error &&
+                typeof error.message === 'string'
+              ? error.message
+              : 'Не удалось загрузить урок';
         setErrorMessage(message);
       } finally {
         setIsLoading(false);
@@ -98,27 +112,38 @@ export const LessonPage = () => {
       return;
     }
 
+    const answersPayload = practiceItems.map((item) => ({
+      practiceItemId: item.id,
+      answerText: practiceAnswers[item.id] ?? '',
+    }));
+
+    const unansweredItemNumbers = answersPayload
+      .map((answer, index) => (answer.answerText.trim() ? null : index + 1))
+      .filter((itemNumber): itemNumber is number => itemNumber !== null);
+
+    if (unansweredItemNumbers.length > 0) {
+      setCompletionMessage('');
+      setErrorMessage(
+        `Заполни все задания перед завершением урока. Не заполнены задания: ${unansweredItemNumbers.join(', ')}.`,
+      );
+      return;
+    }
+
     setErrorMessage('');
     setCompletionMessage('');
     setIsCompleting(true);
 
     try {
-      const answersPayload = practiceItems.map((item) => ({
-        practiceItemId: item.id,
-        answerText: practiceAnswers[item.id] ?? '',
-      }));
-
-      const hasAnyAnswer = answersPayload.some((item) => item.answerText.trim().length > 0);
-
       let nextSubmission: LessonSubmission | null = submission;
 
-      if (practiceItems.length > 0 && hasAnyAnswer) {
+      if (practiceItems.length > 0) {
         await submitLessonAnswers({
           lessonId: lessonIdParam,
           answers: answersPayload,
         });
 
-        nextSubmission = await getMyLessonSubmission(lessonIdParam);
+        const nextSubmissionDetails = await getMyLessonSubmission(lessonIdParam);
+        nextSubmission = nextSubmissionDetails?.submission ?? null;
         setSubmission(nextSubmission);
       }
 
@@ -277,7 +302,7 @@ export const LessonPage = () => {
                     <p className="mt-1 text-sm text-text-secondary">
                       После завершения урока ты получишь 10 круток для гачи курса.
                       {practiceItems.length > 0
-                        ? ' Если заполнить практику, ответы будут отправлены учителю на проверку.'
+                        ? ' Все задания обязательны, ответы будут отправлены учителю на проверку.'
                         : ''}
                     </p>
                   </div>

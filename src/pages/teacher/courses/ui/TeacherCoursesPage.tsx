@@ -18,35 +18,33 @@ const buildTeacherGachaCardsRoute = (courseId: string) =>
 
 export const TeacherCoursesPage = () => {
   const { user } = useAuth();
+  const userId = user?.id;
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusUpdatingCourseId, setStatusUpdatingCourseId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const loadCourses = async () => {
-    if (!user?.id) {
-      setErrorMessage('Пользователь не найден');
-      setIsLoading(false);
+  useEffect(() => {
+    if (!userId) {
       return;
     }
 
-    setErrorMessage('');
+    const loadCourses = async () => {
+      try {
+        const nextCourses = await getCoursesByTeacher(userId);
+        setErrorMessage('');
+        setCourses(nextCourses);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Не удалось загрузить курсы';
+        setErrorMessage(message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    try {
-      const nextCourses = await getCoursesByTeacher(user.id);
-      setCourses(nextCourses);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось загрузить курсы';
-      setErrorMessage(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
     void loadCourses();
-  }, [user?.id]);
+  }, [userId]);
 
   const handleUpdateStatus = async (courseId: string, status: CourseStatus) => {
     setErrorMessage('');

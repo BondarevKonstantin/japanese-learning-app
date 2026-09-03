@@ -30,6 +30,7 @@ const rarityClassMap: Record<GachaCardRarity, string> = {
 export const GachaPage = () => {
   const { user } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
+  const userId = user?.id;
 
   const [overview, setOverview] = useState<UserCourseGachaOverview | null>(null);
   const [lastCard, setLastCard] = useState<GachaCard | null>(null);
@@ -39,19 +40,10 @@ export const GachaPage = () => {
   const [isAddingPulls, setIsAddingPulls] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const loadOverview = useCallback(async () => {
-    if (!user?.id) {
-      setErrorMessage('Пользователь не найден');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!courseId) return;
-
-    setErrorMessage('');
-
+  const loadOverview = useCallback(async (targetCourseId: string, targetUserId: string) => {
     try {
-      const nextOverview = await getUserCourseGachaOverview(courseId, user.id);
+      const nextOverview = await getUserCourseGachaOverview(targetCourseId, targetUserId);
+      setErrorMessage('');
       setOverview(nextOverview);
     } catch (error) {
       const message =
@@ -60,11 +52,17 @@ export const GachaPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, courseId]);
+  }, []);
 
   useEffect(() => {
-    void loadOverview();
-  }, [loadOverview]);
+    if (!courseId || !userId) {
+      return;
+    }
+
+    // State updates happen after the asynchronous Supabase request completes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadOverview(courseId, userId);
+  }, [courseId, loadOverview, userId]);
 
   const handleSpin = async () => {
     setErrorMessage('');
@@ -96,11 +94,11 @@ export const GachaPage = () => {
     setErrorMessage('');
     setIsAddingPulls(true);
 
-    if (!courseId) return;
+    if (!courseId || !userId) return;
 
     try {
       await addTestPulls(courseId, 10);
-      await loadOverview();
+      await loadOverview(courseId, userId);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Не удалось начислить тестовые крутки';

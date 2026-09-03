@@ -24,6 +24,11 @@ export type LessonSubmissionAnswer = {
   updated_at: string;
 };
 
+export type MyLessonSubmissionDetails = {
+  submission: LessonSubmission;
+  answers: LessonSubmissionAnswer[];
+};
+
 export type LessonResultItem = {
   submission_id: string;
   submission_status: LessonSubmissionStatus;
@@ -41,7 +46,14 @@ export type LessonResultItem = {
   teacher_comment: string | null;
 };
 
-export type TeacherLessonSubmissionListItem = LessonSubmission;
+export type StudentSubmissionProfile = {
+  display_name: string | null;
+  email: string | null;
+};
+
+export type TeacherLessonSubmissionListItem = LessonSubmission & {
+  student_profile: StudentSubmissionProfile | null;
+};
 
 export type TeacherLessonSubmissionReviewItem = {
   answer_id: string;
@@ -60,5 +72,6 @@ export type TeacherLessonSubmissionReviewItem = {
 
 export type TeacherLessonSubmissionDetails = {
   submission: LessonSubmission;
+  student_profile: StudentSubmissionProfile | null;
   answers: TeacherLessonSubmissionReviewItem[];
 };

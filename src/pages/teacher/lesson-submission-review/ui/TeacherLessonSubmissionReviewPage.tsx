@@ -6,6 +6,7 @@ import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
 import type {
   LessonSubmission,
+  StudentSubmissionProfile,
   TeacherLessonSubmissionReviewItem,
 } from '@/entities/lesson-submission/model/types';
 import { getLessonSubmissionById } from '@/features/lesson-submission/api/getLessonSubmissionById';
@@ -21,6 +22,9 @@ const formatCorrectAnswer = (value: string | string[]) => {
   return value;
 };
 
+const getStudentDisplayName = (profile: StudentSubmissionProfile | null) =>
+  profile?.display_name?.trim() || profile?.email || 'Имя ученика не указано';
+
 export const TeacherLessonSubmissionReviewPage = () => {
   const navigate = useNavigate();
   const {
@@ -35,6 +39,7 @@ export const TeacherLessonSubmissionReviewPage = () => {
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [submission, setSubmission] = useState<LessonSubmission | null>(null);
+  const [studentProfile, setStudentProfile] = useState<StudentSubmissionProfile | null>(null);
   const [answers, setAnswers] = useState<TeacherLessonSubmissionReviewItem[]>([]);
   const [teacherComments, setTeacherComments] = useState<Record<string, string>>({});
 
@@ -60,6 +65,7 @@ export const TeacherLessonSubmissionReviewPage = () => {
 
         setLesson(nextLesson);
         setSubmission(submissionDetails.submission);
+        setStudentProfile(submissionDetails.student_profile);
         setAnswers(submissionDetails.answers);
 
         const nextTeacherComments = submissionDetails.answers.reduce<Record<string, string>>(
@@ -103,6 +109,11 @@ export const TeacherLessonSubmissionReviewPage = () => {
   const handleSubmitReview = async () => {
     if (!submissionIdParam) {
       setErrorMessage('Submission id не найден');
+      return;
+    }
+
+    if (submission?.status === 'reviewed') {
+      setErrorMessage('Эта работа уже проверена. Повторная отправка результата недоступна.');
       return;
     }
 
@@ -176,7 +187,10 @@ export const TeacherLessonSubmissionReviewPage = () => {
               <div className="rounded-3xl border border-border bg-background p-5">
                 <div className="grid gap-2 text-sm text-text-secondary">
                   <p>
-                    Ученик: <span className="text-text-primary">{submission.user_id}</span>
+                    Ученик:{' '}
+                    <span className="text-text-primary">
+                      {getStudentDisplayName(studentProfile)}
+                    </span>
                   </p>
 
                   <p>
@@ -267,7 +281,8 @@ export const TeacherLessonSubmissionReviewPage = () => {
                           handleCommentChange(item.answer_id, event.target.value)
                         }
                         rows={4}
-                        className="rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
+                        disabled={submission.status === 'reviewed'}
+                        className="rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
                         placeholder="Напиши замечания, исправления или похвалу"
                       />
                     </label>
@@ -279,10 +294,14 @@ export const TeacherLessonSubmissionReviewPage = () => {
                 <button
                   type="button"
                   onClick={handleSubmitReview}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || submission.status === 'reviewed'}
                   className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSubmitting ? 'Отправляем...' : 'Отправить результат ученику'}
+                  {submission.status === 'reviewed'
+                    ? 'Результат уже отправлен'
+                    : isSubmitting
+                      ? 'Отправляем...'
+                      : 'Отправить результат ученику'}
                 </button>
               </div>
             </>

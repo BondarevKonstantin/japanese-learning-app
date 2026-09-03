@@ -14,6 +14,11 @@ const submissionStatusLabelMap: Record<TeacherLessonSubmissionListItem['status']
   reviewed: 'Проверено',
 };
 
+const getStudentDisplayName = (submission: TeacherLessonSubmissionListItem) =>
+  submission.student_profile?.display_name?.trim() ||
+  submission.student_profile?.email ||
+  'Имя ученика не указано';
+
 export const TeacherLessonSubmissionsPage = () => {
   const { courseId: courseIdParam, lessonId: lessonIdParam } = useParams<{
     courseId: string;
@@ -123,7 +128,7 @@ export const TeacherLessonSubmissionsPage = () => {
                       <div>
                         <p className="text-sm text-text-secondary">Работа {index + 1}</p>
                         <h3 className="mt-1 text-lg font-semibold text-text-primary">
-                          Ученик: {submission.user_id}
+                          Ученик: {getStudentDisplayName(submission)}
                         </h3>
 
                         <div className="mt-3 grid gap-2 text-sm text-text-secondary">
