@@ -6,7 +6,6 @@ import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
 import type { TeacherLessonSubmissionListItem } from '@/entities/lesson-submission/model/types';
 import { getLessonSubmissions } from '@/features/lesson-submission/api/getLessonSubmissions';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
 const submissionStatusLabelMap: Record<TeacherLessonSubmissionListItem['status'], string> = {
@@ -98,7 +97,6 @@ export const TeacherLessonSubmissionsPage = () => {
               Назад к практике урока
             </Link>
 
-            <LogoutButton />
           </div>
         </div>
 

@@ -5,7 +5,6 @@ import { AppLayout } from '@/app/layouts/AppLayout';
 import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import { updateLesson } from '@/entities/lesson/api/updateLesson';
 import { insertMarkdownImageAtCursor } from '@/features/lesson-theory-image-upload/lib/insertMarkdownImageAtCursor';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { uploadLessonTheoryImage } from '@/entities/lesson/api/uploadLessonImage';
 
@@ -178,7 +177,6 @@ export const EditLessonPage = () => {
             <p className="mt-2 text-text-secondary">Обнови название, описание и блок теории</p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 max-w-4xl rounded-3xl border border-border bg-surface p-6 shadow-sm">

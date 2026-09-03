@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getPublishedCourses } from '@/entities/course/api/getPublishedCourses';
 import type { Course } from '@/entities/course/model/types';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { BackButton } from '@/shared/ui/BackButton';
 
@@ -43,8 +42,6 @@ export const CoursesPage = () => {
           </div>
 
           <BackButton fallbackTo={routes.home} />
-
-          <LogoutButton />
         </div>
 
         <div className="mt-8 flex min-h-0 flex-1 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">

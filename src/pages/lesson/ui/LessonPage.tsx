@@ -10,7 +10,6 @@ import { completeLesson } from '@/features/lesson/api/completeLesson';
 import { getMyLessonSubmission } from '@/features/lesson-submission/api/getMyLessonSubmission';
 import { submitLessonAnswers } from '@/features/lesson-submission/api/submitLessonAnswers';
 import { LessonPracticeBlock } from '@/features/lesson-practice/ui/LessonPracticeBlock';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { MarkdownRenderer } from '@/shared/ui/MarkdownRenderer';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
@@ -199,8 +198,6 @@ export const LessonPage = () => {
             >
               Назад к курсу
             </Link>
-
-            <LogoutButton />
           </div>
         </div>
 

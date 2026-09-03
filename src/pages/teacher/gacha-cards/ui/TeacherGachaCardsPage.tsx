@@ -5,7 +5,6 @@ import { createGachaCard } from '@/entities/gacha-card/api/createGachaCard';
 import { deleteGachaCard } from '@/entities/gacha-card/api/deleteGachaCard';
 import { getGachaCardsByCourse } from '@/entities/gacha-card/api/getGachaCardsByCourse';
 import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { useParams } from 'react-router-dom';
 
 const rarityOptions: GachaCardRarity[] = ['common', 'rare', 'epic', 'legendary'];
@@ -125,7 +124,6 @@ export const TeacherGachaCardsPage = () => {
             <p className="mt-2 text-text-secondary">Добавление и просмотр карт для курса</p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[360px_1fr]">

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
 import { createCourse } from '@/entities/course/api/createCourse';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
 export const CreateCoursePage = () => {
@@ -55,7 +54,6 @@ export const CreateCoursePage = () => {
             </p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 max-w-3xl rounded-3xl border border-border bg-surface p-6 shadow-sm">

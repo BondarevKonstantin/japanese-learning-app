@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { signOut } from '@/features/auth-by-email/api/signOut';
+import { cn } from '@/shared/lib/cn';
 
-export const LogoutButton = () => {
+type LogoutButtonProps = {
+  className?: string;
+  label?: string;
+};
+
+export const LogoutButton = ({ className, label = 'Выйти' }: LogoutButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
@@ -20,9 +26,12 @@ export const LogoutButton = () => {
       type="button"
       onClick={handleLogout}
       disabled={isLoading}
-      className="rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+      className={cn(
+        'inline-flex min-h-11 items-center justify-center rounded-2xl border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60',
+        className,
+      )}
     >
-      {isLoading ? 'Выход...' : 'Выйти'}
+      {isLoading ? 'Выход...' : label}
     </button>
   );
 };

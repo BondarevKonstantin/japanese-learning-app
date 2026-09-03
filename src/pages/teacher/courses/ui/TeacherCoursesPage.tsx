@@ -6,7 +6,6 @@ import { getCoursesByTeacher } from '@/entities/course/api/getCoursesByTeacher';
 import { updateCourseStatus } from '@/entities/course/api/updateCourseStatus';
 import { courseStatusClassMap, courseStatusLabelMap } from '@/entities/course/model/status';
 import type { Course, CourseStatus } from '@/entities/course/model/types';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { BackButton } from '@/shared/ui/BackButton';
 
@@ -85,7 +84,6 @@ export const TeacherCoursesPage = () => {
               Создать курс
             </Link>
 
-            <LogoutButton />
           </div>
         </div>
 

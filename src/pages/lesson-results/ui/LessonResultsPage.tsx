@@ -6,7 +6,6 @@ import { getPublishedLessonById } from '@/entities/lesson/api/getPublishedLesson
 import type { Lesson } from '@/entities/lesson/model/types';
 import type { LessonResultItem } from '@/entities/lesson-submission/model/types';
 import { getMyLessonResults } from '@/features/lesson-submission/api/getMyLessonResults';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
 const formatCorrectAnswer = (value: string | string[]) => {
@@ -99,8 +98,6 @@ export const LessonResultsPage = () => {
             >
               Назад к уроку
             </Link>
-
-            <LogoutButton />
           </div>
         </div>
 

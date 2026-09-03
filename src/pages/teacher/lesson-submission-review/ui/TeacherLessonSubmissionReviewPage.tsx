@@ -11,7 +11,6 @@ import type {
 } from '@/entities/lesson-submission/model/types';
 import { getLessonSubmissionById } from '@/features/lesson-submission/api/getLessonSubmissionById';
 import { reviewLessonSubmission } from '@/features/lesson-submission/api/reviewLessonSubmission';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
 const formatCorrectAnswer = (value: string | string[]) => {
@@ -167,7 +166,6 @@ export const TeacherLessonSubmissionReviewPage = () => {
               Назад к списку работ
             </Link>
 
-            <LogoutButton />
           </div>
         </div>
 

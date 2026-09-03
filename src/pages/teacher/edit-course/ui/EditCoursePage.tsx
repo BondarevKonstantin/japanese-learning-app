@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { updateCourse } from '@/entities/course/api/updateCourse';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 import { getCourseById } from '@/entities/course/api/getCourseById';
 
@@ -87,7 +86,6 @@ export const EditCoursePage = () => {
             <p className="mt-2 text-text-secondary">Обнови название и описание курса</p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 max-w-3xl rounded-3xl border border-border bg-surface p-6 shadow-sm">

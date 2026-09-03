@@ -13,7 +13,6 @@ import type {
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
 import { uploadPracticeItemImage } from '@/entities/lesson-practice/api/uploadPracticeItemImage';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import { routes } from '@/shared/config/routes';
 
 const typeOptions: LessonPracticeItemType[] = ['multiple_choice', 'input', 'textarea'];
@@ -252,7 +251,6 @@ export const TeacherLessonPracticePage = () => {
               Проверка работ
             </Link>
 
-            <LogoutButton />
           </div>
         </div>
 

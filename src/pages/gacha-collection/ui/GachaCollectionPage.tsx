@@ -5,7 +5,6 @@ import {
   getUserGachaCollection,
   type UserGachaCollectionItem,
 } from '@/features/gacha/api/getUserGachaCollection';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
 import { useParams } from 'react-router-dom';
 
@@ -112,7 +111,6 @@ export const GachaCollectionPage = () => {
             </p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 flex min-h-0 flex-1 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">

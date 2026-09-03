@@ -8,7 +8,6 @@ import {
 } from '@/features/gacha/api/getUserCourseGachaOverview';
 import { spinGacha } from '@/features/gacha/api/spinGacha';
 import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
-import { LogoutButton } from '@/features/logout/ui/LogoutButton';
 
 import { useParams, Link } from 'react-router-dom';
 import { routes } from '@/shared/config/routes';
@@ -138,7 +137,6 @@ export const GachaPage = () => {
             </p>
           </div>
 
-          <LogoutButton />
         </div>
 
         <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[1fr_380px]">
