@@ -1,8 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { registerUser } from '@/features/auth-by-email/model/registerUser';
+import { getAuthErrorMessage } from '@/features/auth-by-email/lib/getAuthErrorMessage';
 import { AppLayout } from '@/app/layouts/AppLayout';
+import { routes } from '@/shared/config/routes';
 
 export const RegisterPage = () => {
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,21 +23,24 @@ export const RegisterPage = () => {
     setIsLoading(true);
 
     try {
-      await registerUser({
+      const authData = await registerUser({
         email,
         password,
         displayName,
       });
 
-      setSuccessMessage('Регистрация прошла успешно');
+      if (authData.session) {
+        navigate(routes.courses, { replace: true });
+        return;
+      }
+
+      setSuccessMessage('Регистрация прошла успешно. Проверьте почту и подтвердите email.');
       setDisplayName('');
       setEmail('');
       setPassword('');
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Не удалось зарегистрировать пользователя';
-
-      setErrorMessage(message);
+      console.error('Registration failed', error);
+      setErrorMessage(getAuthErrorMessage(error, 'signup'));
     } finally {
       setIsLoading(false);
     }

@@ -5,6 +5,7 @@ import { RegisterPage } from '@/pages/auth/register/ui/RegisterPage';
 import { LoginPage } from '@/pages/auth/login/ui/LoginPage';
 import { TeacherCoursesPage } from '@/pages/teacher/courses/ui/TeacherCoursesPage';
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
+import { PublicAuthRoute } from '@/app/router/PublicAuthRoute';
 import { TeacherRoute } from '@/app/router/TeacherRoute';
 import { routes } from '@/shared/config/routes';
 import { TeacherGachaCardsPage } from '@/pages/teacher/gacha-cards/ui/TeacherGachaCardsPage';
@@ -29,12 +30,17 @@ export const router = createBrowserRouter([
     element: <HomePage />,
   },
   {
-    path: routes.register,
-    element: <RegisterPage />,
-  },
-  {
-    path: routes.login,
-    element: <LoginPage />,
+    element: <PublicAuthRoute />,
+    children: [
+      {
+        path: routes.register,
+        element: <RegisterPage />,
+      },
+      {
+        path: routes.login,
+        element: <LoginPage />,
+      },
+    ],
   },
   {
     element: <ProtectedRoute />,

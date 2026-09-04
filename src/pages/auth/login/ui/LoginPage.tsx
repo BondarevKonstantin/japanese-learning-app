@@ -1,20 +1,60 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { signIn } from '@/features/auth-by-email/api/signIn';
+import { getAuthErrorMessage } from '@/features/auth-by-email/lib/getAuthErrorMessage';
+import { routes } from '@/shared/config/routes';
+
+const getLoginRedirectPath = (state: unknown) => {
+  if (typeof state !== 'object' || state === null || !('from' in state)) {
+    return routes.courses;
+  }
+
+  const from = state.from;
+
+  if (typeof from !== 'object' || from === null || !('pathname' in from)) {
+    return routes.courses;
+  }
+
+  const pathname = from.pathname;
+
+  if (
+    typeof pathname !== 'string' ||
+    !pathname.startsWith('/') ||
+    pathname.startsWith('//')
+  ) {
+    return routes.courses;
+  }
+
+  const search =
+    'search' in from &&
+    typeof from.search === 'string' &&
+    (from.search === '' || from.search.startsWith('?'))
+      ? from.search
+      : '';
+  const hash =
+    'hash' in from &&
+    typeof from.hash === 'string' &&
+    (from.hash === '' || from.hash.startsWith('#'))
+      ? from.hash
+      : '';
+
+  return `${pathname}${search}${hash}`;
+};
 
 export const LoginPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setErrorMessage('');
-    setSuccessMessage('');
     setIsLoading(true);
 
     try {
@@ -23,12 +63,10 @@ export const LoginPage = () => {
         password,
       });
 
-      setSuccessMessage('Вход выполнен успешно');
-      setPassword('');
+      navigate(getLoginRedirectPath(location.state), { replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось выполнить вход';
-
-      setErrorMessage(message);
+      console.error('Login failed', error);
+      setErrorMessage(getAuthErrorMessage(error, 'login'));
     } finally {
       setIsLoading(false);
     }
@@ -83,11 +121,6 @@ export const LoginPage = () => {
           </p>
         ) : null}
 
-        {successMessage ? (
-          <p className="mt-5 rounded-2xl border border-primary bg-primary-light px-4 py-3 text-sm text-text-primary">
-            {successMessage}
-          </p>
-        ) : null}
       </div>
     </AppLayout>
   );
