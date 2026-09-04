@@ -16,13 +16,6 @@ export type CourseGachaConfig = {
   updated_at: string;
 };
 
-export type GachaProgress = {
-  unlocked: number;
-  total: number;
-  remaining: number;
-  completed: boolean;
-};
-
 export type UserCourseGachaStateDto = {
   available_pulls: number;
   used_pulls: number;

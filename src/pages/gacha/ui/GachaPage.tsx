@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
-import { addTestPulls } from '@/features/gacha/api/addTestPulls';
 import {
   getUserCourseGachaOverview,
   type UserCourseGachaOverview,
@@ -37,7 +36,6 @@ export const GachaPage = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [isAddingPulls, setIsAddingPulls] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const loadOverview = useCallback(async (targetCourseId: string, targetUserId: string) => {
@@ -87,24 +85,6 @@ export const GachaPage = () => {
       setErrorMessage(message);
     } finally {
       setIsSpinning(false);
-    }
-  };
-
-  const handleAddTestPulls = async () => {
-    setErrorMessage('');
-    setIsAddingPulls(true);
-
-    if (!courseId || !userId) return;
-
-    try {
-      await addTestPulls(courseId, 10);
-      await loadOverview(courseId, userId);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Не удалось начислить тестовые крутки';
-      setErrorMessage(message);
-    } finally {
-      setIsAddingPulls(false);
     }
   };
 
@@ -197,16 +177,8 @@ export const GachaPage = () => {
                     {isSpinning ? 'Крутим...' : 'Крутить'}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleAddTestPulls}
-                    disabled={isAddingPulls}
-                    className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isAddingPulls ? 'Начисляем...' : 'Добавить 10 тестовых круток'}
-                  </button>
                   <Link
-                    to={routes.courseGacha}
+                    to={routes.courseCollection.replace(':courseId', courseId)}
                     className="rounded-2xl border border-border bg-surface px-5 py-3 font-medium text-text-primary transition hover:bg-background"
                   >
                     Открыть коллекцию
