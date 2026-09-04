@@ -7,7 +7,8 @@ import {
   type UserCourseGachaOverview,
 } from '@/features/gacha/api/getUserCourseGachaOverview';
 import { spinGacha } from '@/features/gacha/api/spinGacha';
-import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
+import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
+import type { SpinGachaCardDrop } from '@/entities/gacha/model/types';
 
 import { useParams, Link } from 'react-router-dom';
 import { routes } from '@/shared/config/routes';
@@ -32,7 +33,7 @@ export const GachaPage = () => {
   const userId = user?.id;
 
   const [overview, setOverview] = useState<UserCourseGachaOverview | null>(null);
-  const [lastCard, setLastCard] = useState<GachaCard | null>(null);
+  const [lastPullCards, setLastPullCards] = useState<SpinGachaCardDrop[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -72,14 +73,14 @@ export const GachaPage = () => {
     try {
       const result = await spinGacha(courseId);
 
-      setLastCard(result.card);
+      setLastPullCards(result.cards);
       setOverview({
         availablePulls: result.state.available_pulls,
         usedPulls: result.state.used_pulls,
         totalPullsEarned: result.state.total_pulls_earned,
-        unlockedCount: result.progress.unlocked,
-        totalCards: result.progress.total,
-        completed: result.progress.completed,
+        unlockedCount: result.collection.unlocked_count,
+        totalCards: result.collection.total_count,
+        completed: result.collection.completed,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось выполнить крутку';
@@ -115,7 +116,7 @@ export const GachaPage = () => {
 
   const progressPercent = totalCards > 0 ? (unlockedCount / totalCards) * 100 : 0;
 
-  const canSpin = !isLoading && !isSpinning && totalCards > 0 && availablePulls > 0 && !completed;
+  const canSpin = !isLoading && !isSpinning && totalCards > 0 && availablePulls > 0;
 
   if (!courseId) {
     return (
@@ -214,13 +215,11 @@ export const GachaPage = () => {
 
                 {!errorMessage && !canSpin ? (
                   <p className="mt-4 text-sm text-text-secondary">
-                    {completed
-                      ? 'Коллекция уже собрана.'
-                      : totalCards === 0
-                        ? 'У этого курса пока нет гача-карт.'
-                        : availablePulls === 0
-                          ? 'Сейчас нет доступных круток.'
-                          : ''}
+                    {totalCards === 0
+                      ? 'У этого курса пока нет гача-карт.'
+                      : availablePulls === 0
+                        ? 'Сейчас нет доступных круток.'
+                        : ''}
                   </p>
                 ) : null}
               </>
@@ -235,37 +234,49 @@ export const GachaPage = () => {
 
           <div className="flex min-h-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold text-text-primary">Последняя карта</h2>
-
-              {lastCard ? (
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${rarityClassMap[lastCard.rarity]}`}
-                >
-                  {rarityLabelMap[lastCard.rarity]}
-                </span>
-              ) : null}
+              <h2 className="text-xl font-semibold text-text-primary">Последняя крутка</h2>
             </div>
 
-            {!lastCard ? (
+            {lastPullCards.length === 0 ? (
               <div className="mt-6 flex min-h-[320px] items-center justify-center rounded-3xl border border-dashed border-border bg-background px-6 text-center text-text-secondary">
-                После первой крутки здесь появится выпавшая карта
+                После первой крутки здесь появятся выпавшие карты
               </div>
             ) : (
-              <div className="mt-6 overflow-hidden rounded-3xl border border-border bg-background">
-                <div className="aspect-[3/4] bg-surface">
-                  <img
-                    src={lastCard.image_url}
-                    alt={lastCard.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+              <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-auto pr-2">
+                {lastPullCards.map((card) => (
+                  <div
+                    key={card.drop_number}
+                    className="overflow-hidden rounded-3xl border border-border bg-background"
+                  >
+                    <div className="aspect-[3/2] bg-surface">
+                      {card.image_url ? (
+                        <img
+                          src={card.image_url}
+                          alt={card.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
 
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-text-primary">{lastCard.title}</h3>
-                  <p className="mt-2 text-sm text-text-secondary">
-                    Редкость: {rarityLabelMap[lastCard.rarity]}
-                  </p>
-                </div>
+                    <div className="p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h3 className="text-lg font-semibold text-text-primary">{card.title}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {card.was_new ? (
+                            <span className="rounded-full border border-primary bg-primary-light px-3 py-1 text-xs font-medium text-text-primary">
+                              Новая
+                            </span>
+                          ) : null}
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-medium ${rarityClassMap[card.rarity]}`}
+                          >
+                            {rarityLabelMap[card.rarity]}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import type { GachaCard } from '@/entities/gacha-card/model/types';
+import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
 
 export type CourseGachaConfigStatus = 'draft' | 'finalized';
 
@@ -29,15 +29,28 @@ export type UserCourseGachaStateDto = {
   total_pulls_earned: number;
 };
 
-export type SpinMeta = {
-  pull_number: number;
-  target_rarity: string;
-  actual_rarity: string;
+export type SpinGachaCardDrop = {
+  id: string;
+  title: string;
+  image_url: string | null;
+  rarity: GachaCardRarity;
+  was_new: boolean;
+  drop_number: number;
+};
+
+export type SpinGachaState = UserCourseGachaStateDto & {
+  used_drops: number;
+};
+
+export type SpinGachaCollection = {
+  unlocked_count: number;
+  total_count: number;
+  completed: boolean;
 };
 
 export type SpinGachaResult = {
-  card: GachaCard;
-  progress: GachaProgress;
-  state: UserCourseGachaStateDto;
-  meta: SpinMeta;
+  pull_number: number;
+  cards: SpinGachaCardDrop[];
+  state: SpinGachaState;
+  collection: SpinGachaCollection;
 };
