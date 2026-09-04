@@ -1,5 +1,21 @@
 import type { GachaCard } from '@/entities/gacha-card/model/types';
 
+export type CourseGachaConfigStatus = 'draft' | 'finalized';
+
+export type CourseGachaConfig = {
+  course_id: string;
+  status: CourseGachaConfigStatus;
+  cards_count: number | null;
+  reward_lessons_count: number | null;
+  pulls_per_lesson: number | null;
+  cards_per_pull: number | null;
+  total_pulls: number | null;
+  total_drops: number | null;
+  finalized_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type GachaProgress = {
   unlocked: number;
   total: number;
