@@ -6,6 +6,7 @@ import { getCoursesByTeacher } from '@/entities/course/api/getCoursesByTeacher';
 import { updateCourseStatus } from '@/entities/course/api/updateCourseStatus';
 import { courseStatusClassMap, courseStatusLabelMap } from '@/entities/course/model/status';
 import type { Course, CourseStatus } from '@/entities/course/model/types';
+import { getFinalizedGachaCourseIds } from '@/features/gacha/api/getFinalizedGachaCourseIds';
 import { routes } from '@/shared/config/routes';
 import { BackButton } from '@/shared/ui/BackButton';
 
@@ -15,11 +16,17 @@ const buildTeacherCourseLessonsRoute = (courseId: string) =>
 const buildTeacherGachaCardsRoute = (courseId: string) =>
   routes.teacherGachaCards.replace(':courseId', courseId);
 
+const buildTeacherCoursePreviewRoute = (courseId: string) =>
+  routes.teacherCoursePreview.replace(':courseId', courseId);
+
 export const TeacherCoursesPage = () => {
   const { user } = useAuth();
   const userId = user?.id;
 
   const [courses, setCourses] = useState<Course[]>([]);
+  const [finalizedGachaCourseIds, setFinalizedGachaCourseIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [statusUpdatingCourseId, setStatusUpdatingCourseId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -32,8 +39,13 @@ export const TeacherCoursesPage = () => {
     const loadCourses = async () => {
       try {
         const nextCourses = await getCoursesByTeacher(userId);
+        const nextFinalizedGachaCourseIds = await getFinalizedGachaCourseIds(
+          nextCourses.map((course) => course.id),
+        );
+
         setErrorMessage('');
         setCourses(nextCourses);
+        setFinalizedGachaCourseIds(new Set(nextFinalizedGachaCourseIds));
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Не удалось загрузить курсы';
         setErrorMessage(message);
@@ -46,6 +58,11 @@ export const TeacherCoursesPage = () => {
   }, [userId]);
 
   const handleUpdateStatus = async (courseId: string, status: CourseStatus) => {
+    if (status === 'published' && !finalizedGachaCourseIds.has(courseId)) {
+      setErrorMessage('Сначала финализируйте коллекцию gacha для этого курса.');
+      return;
+    }
+
     setErrorMessage('');
     setStatusUpdatingCourseId(courseId);
 
@@ -120,6 +137,7 @@ export const TeacherCoursesPage = () => {
               <div className="grid gap-4 xl:grid-cols-2">
                 {courses.map((course) => {
                   const isStatusUpdating = statusUpdatingCourseId === course.id;
+                  const isGachaFinalized = finalizedGachaCourseIds.has(course.id);
 
                   return (
                     <div
@@ -157,7 +175,14 @@ export const TeacherCoursesPage = () => {
                         <button
                           type="button"
                           onClick={() => handleUpdateStatus(course.id, 'published')}
-                          disabled={isStatusUpdating || course.status === 'published'}
+                          disabled={
+                            isStatusUpdating || course.status === 'published' || !isGachaFinalized
+                          }
+                          title={
+                            isGachaFinalized
+                              ? undefined
+                              : 'Сначала финализируйте коллекцию gacha'
+                          }
                           className="rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Опубликовать
@@ -179,7 +204,20 @@ export const TeacherCoursesPage = () => {
                         </Link>
                       </div>
 
+                      {!isGachaFinalized ? (
+                        <p className="mt-3 text-sm text-accent">
+                          Чтобы опубликовать курс, сначала финализируйте коллекцию gacha.
+                        </p>
+                      ) : null}
+
                       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <Link
+                          to={buildTeacherCoursePreviewRoute(course.id)}
+                          className="rounded-2xl border border-primary bg-primary-light px-4 py-3 text-center font-medium text-text-primary transition hover:opacity-90"
+                        >
+                          Предпросмотр
+                        </Link>
+
                         <Link
                           to={buildTeacherCourseLessonsRoute(course.id)}
                           className="rounded-2xl bg-primary px-4 py-3 text-center font-medium text-white transition hover:opacity-90"

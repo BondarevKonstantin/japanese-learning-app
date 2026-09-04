@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { AppLayout } from '@/app/layouts/AppLayout';
+import { useAuth } from '@/app/providers/auth/useAuth';
+import { getCourseById } from '@/entities/course/api/getCourseById';
 import { getPublishedCourseById } from '@/entities/course/api/getPublishedCourseById';
 import type { Course } from '@/entities/course/model/types';
+import { getLessonsByCourse } from '@/entities/lesson/api/getLessonsByCourse';
 import { getPublishedLessonsByCourse } from '@/entities/lesson/api/getPublishedLessonsByCourse';
 import type { Lesson } from '@/entities/lesson/model/types';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
@@ -14,6 +17,9 @@ import { BackButton } from '@/shared/ui/BackButton';
 const buildLessonRoute = (courseId: string, lessonId: string) =>
   routes.lesson.replace(':courseId', courseId).replace(':lessonId', lessonId);
 
+const buildTeacherLessonPreviewRoute = (courseId: string, lessonId: string) =>
+  routes.teacherLessonPreview.replace(':courseId', courseId).replace(':lessonId', lessonId);
+
 const buildLessonResultsRoute = (courseId: string, lessonId: string) =>
   routes.lessonResults.replace(':courseId', courseId).replace(':lessonId', lessonId);
 
@@ -23,8 +29,14 @@ const buildCourseGachaRoute = (courseId: string) =>
 const buildCourseCollectionRoute = (courseId: string) =>
   routes.courseCollection.replace(':courseId', courseId);
 
-export const CoursePage = () => {
+type CoursePageProps = {
+  mode?: 'student' | 'teacher-preview';
+};
+
+export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
+  const { user } = useAuth();
   const { courseId: courseIdParam } = useParams<{ courseId: string }>();
+  const isTeacherPreview = mode === 'teacher-preview';
 
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -45,12 +57,25 @@ export const CoursePage = () => {
 
       try {
         const [nextCourse, nextLessons] = await Promise.all([
-          getPublishedCourseById(courseIdParam),
-          getPublishedLessonsByCourse(courseIdParam),
+          isTeacherPreview
+            ? getCourseById(courseIdParam)
+            : getPublishedCourseById(courseIdParam),
+          isTeacherPreview
+            ? getLessonsByCourse(courseIdParam)
+            : getPublishedLessonsByCourse(courseIdParam),
         ]);
+
+        if (isTeacherPreview && nextCourse.created_by !== user?.id) {
+          throw new Error('Нет доступа к предпросмотру этого курса');
+        }
 
         setCourse(nextCourse);
         setLessons(nextLessons);
+
+        if (isTeacherPreview) {
+          setSubmissionsMap({});
+          return;
+        }
 
         const { data: submissions, error } = await supabase
           .from('lesson_submissions')
@@ -77,7 +102,7 @@ export const CoursePage = () => {
     };
 
     void loadCoursePage();
-  }, [courseIdParam]);
+  }, [courseIdParam, isTeacherPreview, user?.id]);
 
   if (!courseIdParam) {
     return (
@@ -90,17 +115,36 @@ export const CoursePage = () => {
   return (
     <AppLayout>
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-start justify-between gap-4">
+        {isTeacherPreview ? (
+          <div className="mb-6 rounded-3xl border border-primary bg-primary-light px-5 py-4 text-text-primary">
+            <p className="font-semibold">Режим предпросмотра</p>
+            <p className="mt-1 text-sm">
+              Так курс будет выглядеть для ученика после публикации.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
-            <p className="text-sm font-medium text-accent">Student panel</p>
+            <p className="text-sm font-medium text-accent">
+              {isTeacherPreview ? 'Teacher preview' : 'Student panel'}
+            </p>
             <h1 className="mt-2 text-3xl font-bold text-text-primary">{course?.title ?? 'Курс'}</h1>
             <p className="mt-2 text-text-secondary">
               {course?.description?.trim() || 'Изучай уроки и открывай новые карточки'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <BackButton fallbackTo={routes.courses} />
+          <div className="flex flex-wrap items-center gap-3">
+            <BackButton fallbackTo={isTeacherPreview ? routes.teacherCourses : routes.courses} />
+            {isTeacherPreview ? (
+              <Link
+                to={routes.teacherEditCourse.replace(':courseId', courseIdParam)}
+                className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
+              >
+                Вернуться к редактированию
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -170,7 +214,11 @@ export const CoursePage = () => {
                             ) : null}
 
                             <Link
-                              to={buildLessonRoute(courseIdParam, lesson.id)}
+                              to={
+                                isTeacherPreview
+                                  ? buildTeacherLessonPreviewRoute(courseIdParam, lesson.id)
+                                  : buildLessonRoute(courseIdParam, lesson.id)
+                              }
                               className="rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"
                             >
                               Открыть
@@ -193,25 +241,27 @@ export const CoursePage = () => {
               </p>
             </div>
 
-            <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-text-primary">Дополнительно</h2>
+            {!isTeacherPreview ? (
+              <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+                <h2 className="text-xl font-semibold text-text-primary">Дополнительно</h2>
 
-              <div className="mt-4 flex flex-col gap-3">
-                <Link
-                  to={buildCourseGachaRoute(courseIdParam)}
-                  className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
-                >
-                  Открыть гачу
-                </Link>
+                <div className="mt-4 flex flex-col gap-3">
+                  <Link
+                    to={buildCourseGachaRoute(courseIdParam)}
+                    className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
+                  >
+                    Открыть гачу
+                  </Link>
 
-                <Link
-                  to={buildCourseCollectionRoute(courseIdParam)}
-                  className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
-                >
-                  Моя коллекция
-                </Link>
+                  <Link
+                    to={buildCourseCollectionRoute(courseIdParam)}
+                    className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
+                  >
+                    Моя коллекция
+                  </Link>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       </div>

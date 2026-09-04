@@ -6,10 +6,12 @@ export const routes = {
   teacherCourses: '/teacher/courses',
   teacherCreateCourse: '/teacher/courses/create',
   teacherEditCourse: '/teacher/courses/:courseId/edit',
+  teacherCoursePreview: '/teacher/courses/:courseId/preview',
 
   teacherCourseLessons: '/teacher/courses/:courseId/lessons',
   teacherCreateLesson: '/teacher/courses/:courseId/lessons/create',
   teacherEditLesson: '/teacher/courses/:courseId/lessons/:lessonId/edit',
+  teacherLessonPreview: '/teacher/courses/:courseId/lessons/:lessonId/preview',
   teacherLessonPractice: '/teacher/courses/:courseId/lessons/:lessonId/practice',
 
   teacherGachaCards: '/teacher/courses/:courseId/gacha/cards',

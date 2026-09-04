@@ -85,8 +85,16 @@ export const router = createBrowserRouter([
             element: <EditCoursePage />,
           },
           {
+            path: routes.teacherCoursePreview,
+            element: <CoursePage mode="teacher-preview" />,
+          },
+          {
             path: routes.teacherEditLesson,
             element: <EditLessonPage />,
+          },
+          {
+            path: routes.teacherLessonPreview,
+            element: <LessonPage mode="teacher-preview" />,
           },
         ],
       },

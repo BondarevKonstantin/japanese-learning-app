@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
+import { getCourseById } from '@/entities/course/api/getCourseById';
+import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import { getPublishedLessonById } from '@/entities/lesson/api/getPublishedLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
 import { getLessonPracticeItems } from '@/entities/lesson-practice/api/getLessonPracticeItems';
@@ -14,12 +16,17 @@ import { routes } from '@/shared/config/routes';
 import { MarkdownRenderer } from '@/shared/ui/MarkdownRenderer';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
 
-export const LessonPage = () => {
+type LessonPageProps = {
+  mode?: 'student' | 'teacher-preview';
+};
+
+export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
   const { user } = useAuth();
   const { courseId: courseIdParam, lessonId: lessonIdParam } = useParams<{
     courseId: string;
     lessonId: string;
   }>();
+  const isTeacherPreview = mode === 'teacher-preview';
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [practiceItems, setPracticeItems] = useState<LessonPracticeItem[]>([]);
@@ -49,6 +56,28 @@ export const LessonPage = () => {
       setErrorMessage('');
 
       try {
+        if (isTeacherPreview) {
+          if (!courseIdParam) {
+            throw new Error('Course id не найден');
+          }
+
+          const [previewCourse, nextLesson, nextPracticeItems] = await Promise.all([
+            getCourseById(courseIdParam),
+            getLessonById(lessonIdParam),
+            getLessonPracticeItems(lessonIdParam),
+          ]);
+
+          if (previewCourse.created_by !== user.id || nextLesson.course_id !== courseIdParam) {
+            throw new Error('Нет доступа к предпросмотру этого урока');
+          }
+
+          setLesson(nextLesson);
+          setPracticeItems(nextPracticeItems);
+          setPracticeAnswers({});
+          setSubmission(null);
+          return;
+        }
+
         const [nextLesson, nextPracticeItems, nextSubmissionDetails] = await Promise.all([
           getPublishedLessonById(lessonIdParam),
           getLessonPracticeItems(lessonIdParam),
@@ -81,15 +110,17 @@ export const LessonPage = () => {
     };
 
     void loadLessonPage();
-  }, [lessonIdParam, user?.id]);
+  }, [courseIdParam, isTeacherPreview, lessonIdParam, user?.id]);
 
   const backToCourseRoute = useMemo(() => {
     if (!courseIdParam) {
       return routes.courses;
     }
 
-    return routes.course.replace(':courseId', courseIdParam);
-  }, [courseIdParam]);
+    return isTeacherPreview
+      ? routes.teacherCoursePreview.replace(':courseId', courseIdParam)
+      : routes.course.replace(':courseId', courseIdParam);
+  }, [courseIdParam, isTeacherPreview]);
 
   const resultsRoute = useMemo(() => {
     if (!courseIdParam || !lessonIdParam) {
@@ -106,6 +137,10 @@ export const LessonPage = () => {
   const isSubmitted = submission?.status === 'submitted';
 
   const handleCompleteLesson = async () => {
+    if (isTeacherPreview) {
+      return;
+    }
+
     if (!lessonIdParam) {
       setErrorMessage('Lesson id не найден');
       return;
@@ -182,22 +217,45 @@ export const LessonPage = () => {
   return (
     <AppLayout disableOverflowHidden>
       <div id="top" className="flex min-h-full flex-col">
-        <div className="flex items-start justify-between gap-4">
+        {isTeacherPreview ? (
+          <div className="mb-6 rounded-3xl border border-primary bg-primary-light px-5 py-4 text-text-primary">
+            <p className="font-semibold">Режим предпросмотра</p>
+            <p className="mt-1 text-sm">
+              Так урок будет выглядеть для ученика после публикации. Ответы сохраняются только до
+              обновления страницы.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
-            <p className="text-sm font-medium text-accent">Student panel</p>
+            <p className="text-sm font-medium text-accent">
+              {isTeacherPreview ? 'Teacher preview' : 'Student panel'}
+            </p>
             <h1 className="mt-2 text-3xl font-bold text-text-primary">{lesson?.title ?? 'Урок'}</h1>
             <p className="mt-2 text-text-secondary">
               {lesson?.description?.trim() || 'Изучай теорию и переходи к практике'}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               to={backToCourseRoute}
               className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
             >
               Назад к курсу
             </Link>
+
+            {isTeacherPreview ? (
+              <Link
+                to={routes.teacherEditLesson
+                  .replace(':courseId', courseIdParam)
+                  .replace(':lessonId', lessonIdParam)}
+                className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
+              >
+                Вернуться к редактированию
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -288,45 +346,56 @@ export const LessonPage = () => {
                   items={practiceItems}
                   answers={practiceAnswers}
                   onAnswersChange={setPracticeAnswers}
-                  isReadonly={isSubmitted || isReviewed}
+                  isReadonly={!isTeacherPreview && (isSubmitted || isReviewed)}
                 />
               </div>
 
-              <div className="mt-8 rounded-3xl border border-border bg-background p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-text-primary">Завершение урока</h3>
-                    <p className="mt-1 text-sm text-text-secondary">
-                      После завершения урока ты получишь 10 круток для гачи курса.
-                      {practiceItems.length > 0
-                        ? ' Все задания обязательны, ответы будут отправлены учителю на проверку.'
-                        : ''}
-                    </p>
-                  </div>
-
-                  {isReviewed ? (
-                    <Link
-                      to={resultsRoute}
-                      className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
-                    >
-                      Посмотреть результаты
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleCompleteLesson}
-                      disabled={isCompleting || isSubmitted}
-                      className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSubmitted
-                        ? 'Ответы уже отправлены'
-                        : isCompleting
-                          ? 'Завершаем...'
-                          : 'Завершить урок'}
-                    </button>
-                  )}
+              {isTeacherPreview ? (
+                <div className="mt-8 rounded-3xl border border-border bg-background p-5">
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    Предпросмотр практики
+                  </h3>
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Введённые ответы хранятся только в этой вкладке и не отправляются на сервер.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-8 rounded-3xl border border-border bg-background p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-text-primary">Завершение урока</h3>
+                      <p className="mt-1 text-sm text-text-secondary">
+                        После завершения урока ты получишь 10 круток для гачи курса.
+                        {practiceItems.length > 0
+                          ? ' Все задания обязательны, ответы будут отправлены учителю на проверку.'
+                          : ''}
+                      </p>
+                    </div>
+
+                    {isReviewed ? (
+                      <Link
+                        to={resultsRoute}
+                        className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
+                      >
+                        Посмотреть результаты
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCompleteLesson}
+                        disabled={isCompleting || isSubmitted}
+                        className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSubmitted
+                          ? 'Ответы уже отправлены'
+                          : isCompleting
+                            ? 'Завершаем...'
+                            : 'Завершить урок'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
           </div>
         )}
