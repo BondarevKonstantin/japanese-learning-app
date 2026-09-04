@@ -365,7 +365,7 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
                     <div>
                       <h3 className="text-lg font-semibold text-text-primary">Завершение урока</h3>
                       <p className="mt-1 text-sm text-text-secondary">
-                        После завершения урока ты получишь 10 круток для гачи курса.
+                        Заверши урок, чтобы получить новые попытки в гаче.
                         {practiceItems.length > 0
                           ? ' Все задания обязательны, ответы будут отправлены учителю на проверку.'
                           : ''}
