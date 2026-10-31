@@ -6,6 +6,7 @@ import {
   type UserGachaCollectionItem,
 } from '@/features/gacha/api/getUserGachaCollection';
 import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
+import { GachaCard } from '@/entities/gacha-card/ui/GachaCard';
 import { useParams } from 'react-router-dom';
 
 const rarityOptions: Array<GachaCardRarity | 'all'> = [
@@ -180,24 +181,15 @@ export const GachaCollectionPage = () => {
                 {filteredCards.map((card) => (
                   <div
                     key={card.id}
-                    className="overflow-hidden rounded-3xl border border-border bg-background"
+                    className="rounded-3xl border border-border bg-background"
                   >
-                    <div className="relative aspect-[3/4] bg-surface">
-                      <img
-                        src={card.image_url}
+                    <div className="px-3 pt-3">
+                      <GachaCard
+                        rarity={card.rarity}
+                        imageUrl={card.isUnlocked ? card.image_url : ''}
                         alt={card.isUnlocked ? card.title : 'Закрытая карта'}
-                        className={`h-full w-full object-cover transition ${
-                          card.isUnlocked ? '' : 'scale-105 blur-[10px] grayscale'
-                        }`}
+                        isLocked={!card.isUnlocked}
                       />
-
-                      {!card.isUnlocked ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-background/60">
-                          <div className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-text-secondary">
-                            Не открыто
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
 
                     <div className="p-4">

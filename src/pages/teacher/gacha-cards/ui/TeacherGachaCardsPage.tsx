@@ -5,7 +5,8 @@ import { createGachaCard } from '@/entities/gacha-card/api/createGachaCard';
 import { deleteGachaCard } from '@/entities/gacha-card/api/deleteGachaCard';
 import { getGachaCardsByCourse } from '@/entities/gacha-card/api/getGachaCardsByCourse';
 import { updateGachaCardRarity } from '@/entities/gacha-card/api/updateGachaCardRarity';
-import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
+import type { GachaCard as GachaCardData, GachaCardRarity } from '@/entities/gacha-card/model/types';
+import { GachaCard } from '@/entities/gacha-card/ui/GachaCard';
 import type { CourseGachaConfig } from '@/entities/gacha/model/types';
 import { finalizeCourseGacha } from '@/features/gacha/api/finalizeCourseGacha';
 import { getCourseGachaConfig } from '@/features/gacha/api/getCourseGachaConfig';
@@ -31,7 +32,7 @@ export const TeacherGachaCardsPage = () => {
   const { user } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
 
-  const [cards, setCards] = useState<GachaCard[]>([]);
+  const [cards, setCards] = useState<GachaCardData[]>([]);
   const [gachaConfig, setGachaConfig] = useState<CourseGachaConfig | null>(null);
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -306,13 +307,13 @@ export const TeacherGachaCardsPage = () => {
                   {cards.map((card) => (
                     <div
                       key={card.id}
-                      className="overflow-hidden rounded-3xl border border-border bg-background"
+                      className="rounded-3xl border border-border bg-background"
                     >
-                      <div className="aspect-[3/4] bg-surface">
-                        <img
-                          src={card.image_url}
+                      <div className="px-3 pt-3">
+                        <GachaCard
+                          rarity={card.rarity}
+                          imageUrl={card.image_url}
                           alt={card.title}
-                          className="h-full w-full object-cover"
                         />
                       </div>
 
