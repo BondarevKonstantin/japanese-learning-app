@@ -1,13 +1,29 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
 import { createGachaCard } from '@/entities/gacha-card/api/createGachaCard';
+import {
+  deleteStoredGachaCardImageIfOwned,
+  removeGachaCardImage,
+  uploadGachaCardImage,
+} from '@/entities/gacha-card/api/gachaCardImageStorage';
 import { deleteGachaCard } from '@/entities/gacha-card/api/deleteGachaCard';
 import { getGachaCardsByCourse } from '@/entities/gacha-card/api/getGachaCardsByCourse';
 import { updateGachaCardRarity } from '@/entities/gacha-card/api/updateGachaCardRarity';
-import type { GachaCard as GachaCardData, GachaCardRarity } from '@/entities/gacha-card/model/types';
+import { readGachaCardImageFile } from '@/entities/gacha-card/lib/readGachaCardImageFile';
+import {
+  createDefaultGachaImageTransform,
+  normalizeGachaImageTransform,
+} from '@/entities/gacha-card/model/imageTransform';
+import type { ImageSize } from '@/entities/gacha-card/model/imageTransform';
+import type {
+  GachaCard as GachaCardData,
+  GachaCardRarity,
+  GachaImageTransform,
+} from '@/entities/gacha-card/model/types';
 import { GachaCard } from '@/entities/gacha-card/ui/GachaCard';
 import type { CourseGachaConfig } from '@/entities/gacha/model/types';
+import { GachaImageEditor } from '@/features/gacha-image-editor/ui/GachaImageEditor';
 import { finalizeCourseGacha } from '@/features/gacha/api/finalizeCourseGacha';
 import { getCourseGachaConfig } from '@/features/gacha/api/getCourseGachaConfig';
 import { useParams } from 'react-router-dom';
@@ -35,14 +51,33 @@ export const TeacherGachaCardsPage = () => {
   const [cards, setCards] = useState<GachaCardData[]>([]);
   const [gachaConfig, setGachaConfig] = useState<CourseGachaConfig | null>(null);
   const [title, setTitle] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageSize, setImageSize] = useState<ImageSize | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [transform, setTransform] = useState<GachaImageTransform>(
+    createDefaultGachaImageTransform(),
+  );
   const [rarity, setRarity] = useState<GachaCardRarity>('common');
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [rarityUpdatingCardId, setRarityUpdatingCardId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const fileRequestRef = useRef(0);
+  const previewUrlRef = useRef<string | null>(null);
+  const readingImageRef = useRef(false);
+  const submitLockRef = useRef(false);
+
+  const replacePreviewUrl = (nextUrl: string | null) => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+
+    previewUrlRef.current = nextUrl;
+    setPreviewUrl(nextUrl);
+  };
 
   const loadPageData = useCallback(async (targetCourseId: string) => {
     try {
@@ -54,12 +89,25 @@ export const TeacherGachaCardsPage = () => {
       setErrorMessage('');
       setCards(nextCards);
       setGachaConfig(nextConfig);
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось загрузить данные гачи';
       setErrorMessage(message);
+      return false;
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      fileRequestRef.current += 1;
+
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -74,8 +122,74 @@ export const TeacherGachaCardsPage = () => {
 
   const isFinalized = gachaConfig?.status === 'finalized';
 
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file || submitLockRef.current) {
+      return;
+    }
+
+    const requestId = ++fileRequestRef.current;
+    readingImageRef.current = true;
+    setIsReadingImage(true);
+    setErrorMessage('');
+    setImageFile(null);
+    setImageSize(null);
+    setTransform(createDefaultGachaImageTransform());
+    replacePreviewUrl(null);
+
+    try {
+      const nextImageSize = await readGachaCardImageFile(file);
+
+      if (requestId !== fileRequestRef.current) {
+        return;
+      }
+
+      const nextPreviewUrl = URL.createObjectURL(file);
+
+      if (requestId !== fileRequestRef.current) {
+        URL.revokeObjectURL(nextPreviewUrl);
+        return;
+      }
+
+      replacePreviewUrl(nextPreviewUrl);
+      setImageFile(file);
+      setImageSize(nextImageSize);
+      setTransform(createDefaultGachaImageTransform());
+    } catch (error) {
+      if (requestId !== fileRequestRef.current) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'Не удалось прочитать изображение';
+      setErrorMessage(message);
+    } finally {
+      if (requestId === fileRequestRef.current) {
+        readingImageRef.current = false;
+        setIsReadingImage(false);
+      }
+    }
+  };
+
+  const handleFormRarityChange = (nextRarity: GachaCardRarity) => {
+    setRarity(nextRarity);
+
+    if (!imageSize) {
+      return;
+    }
+
+    setTransform((currentTransform) =>
+      normalizeGachaImageTransform(currentTransform, imageSize, nextRarity),
+    );
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (submitLockRef.current || readingImageRef.current) {
+      return;
+    }
 
     if (!user?.id) {
       setErrorMessage('Пользователь не найден');
@@ -89,32 +203,61 @@ export const TeacherGachaCardsPage = () => {
       return;
     }
 
+    if (!imageFile || !imageSize) {
+      setErrorMessage('Выберите изображение');
+      return;
+    }
+
+    const imageTransform = normalizeGachaImageTransform(transform, imageSize, rarity);
+    submitLockRef.current = true;
     setErrorMessage('');
     setIsSubmitting(true);
 
+    let uploadedPath: string | null = null;
+
     try {
+      const uploadedImage = await uploadGachaCardImage({
+        file: imageFile,
+        courseId,
+      });
+      uploadedPath = uploadedImage.path;
+
       await createGachaCard({
-        courseId: courseId,
+        courseId,
         title,
-        imageUrl,
+        imageUrl: uploadedImage.publicUrl,
+        imageTransform,
         rarity,
         createdBy: user.id,
       });
 
       setTitle('');
-      setImageUrl('');
       setRarity('common');
+      setImageFile(null);
+      setImageSize(null);
+      setTransform(createDefaultGachaImageTransform());
+      replacePreviewUrl(null);
 
       await loadPageData(courseId);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось создать карту';
+      let message = error instanceof Error ? error.message : 'Не удалось создать карту';
+
+      if (uploadedPath) {
+        try {
+          await removeGachaCardImage(uploadedPath);
+        } catch {
+          message = `${message} Загруженный файл мог остаться в хранилище.`;
+        }
+      }
+
       setErrorMessage(message);
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (cardId: string) => {
+  const handleDelete = async (card: GachaCardData) => {
     if (!courseId) return;
 
     if (isFinalized) {
@@ -123,11 +266,29 @@ export const TeacherGachaCardsPage = () => {
     }
 
     try {
-      await deleteGachaCard(cardId);
-      await loadPageData(courseId);
+      await deleteGachaCard(card.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось удалить карту';
       setErrorMessage(message);
+      return;
+    }
+
+    let cleanupFailed = false;
+
+    try {
+      await deleteStoredGachaCardImageIfOwned(card.image_url, card.course_id);
+    } catch {
+      cleanupFailed = true;
+    }
+
+    const loaded = await loadPageData(courseId);
+
+    if (cleanupFailed) {
+      setErrorMessage(
+        loaded
+          ? 'Карта удалена, но файл изображения мог остаться в хранилище.'
+          : 'Карта удалена, но файл изображения мог остаться в хранилище. Не удалось обновить галерею.',
+      );
     }
   };
 
@@ -177,7 +338,8 @@ export const TeacherGachaCardsPage = () => {
       const finalizedConfig = await finalizeCourseGacha(courseId);
       setGachaConfig(finalizedConfig);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось финализировать коллекцию';
+      const message =
+        error instanceof Error ? error.message : 'Не удалось финализировать коллекцию';
       setErrorMessage(message);
     } finally {
       setIsFinalizing(false);
@@ -194,7 +356,7 @@ export const TeacherGachaCardsPage = () => {
 
   return (
     <AppLayout>
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 flex-col max-lg:overflow-y-auto">
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
             <p className="text-sm font-medium text-accent">Teacher panel</p>
@@ -230,12 +392,12 @@ export const TeacherGachaCardsPage = () => {
         ) : null}
 
         <div
-          className={`mt-8 grid min-h-0 flex-1 gap-8 ${
+          className={`mt-8 grid min-h-0 gap-8 max-lg:flex-none lg:min-h-0 lg:flex-1 lg:overflow-hidden ${
             isFinalized ? '' : 'lg:grid-cols-[360px_1fr]'
           }`}
         >
           {!isFinalized ? (
-            <div className="flex h-full flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
+            <div className="flex min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm lg:h-full lg:overflow-y-auto">
               <h2 className="text-xl font-semibold text-text-primary">Добавить карту</h2>
 
               <form className="mt-6 flex flex-1 flex-col gap-4" onSubmit={handleSubmit}>
@@ -251,23 +413,30 @@ export const TeacherGachaCardsPage = () => {
                   />
                 </label>
 
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-text-primary">Ссылка на картинку</span>
+                <label className="flex min-w-0 flex-col gap-2">
+                  <span className="text-sm font-medium text-text-primary">Изображение</span>
                   <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(event) => setImageUrl(event.target.value)}
-                    className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
-                    placeholder="https://..."
-                    required
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      void handleFileChange(event);
+                    }}
+                    disabled={isSubmitting || isReadingImage}
+                    className="block w-full min-w-0 text-sm text-text-primary file:mr-3 file:rounded-xl file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
                   />
+                  <span className="text-xs text-text-secondary">
+                    PNG, JPEG или WebP, не больше 5 МБ
+                  </span>
                 </label>
 
                 <label className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-text-primary">Редкость</span>
                   <select
                     value={rarity}
-                    onChange={(event) => setRarity(event.target.value as GachaCardRarity)}
+                    onChange={(event) =>
+                      handleFormRarityChange(event.target.value as GachaCardRarity)
+                    }
+                    disabled={isSubmitting}
                     className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
                   >
                     {rarityOptions.map((option) => (
@@ -278,11 +447,23 @@ export const TeacherGachaCardsPage = () => {
                   </select>
                 </label>
 
+                {previewUrl && imageSize ? (
+                  <GachaImageEditor
+                    key={previewUrl}
+                    imageUrl={previewUrl}
+                    imageSize={imageSize}
+                    rarity={rarity}
+                    transform={transform}
+                    alt={title.trim() || 'Предпросмотр карты'}
+                    onTransformChange={setTransform}
+                  />
+                ) : null}
+
                 <div className="mt-auto" />
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isReadingImage}
                   className="mt-2 rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? 'Создание...' : 'Создать карту'}
@@ -291,7 +472,7 @@ export const TeacherGachaCardsPage = () => {
             </div>
           ) : null}
 
-          <div className="flex min-h-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
+          <div className="flex min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm lg:h-full">
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-xl font-semibold text-text-primary">Галерея карт</h2>
               <p className="text-sm text-text-secondary">Всего: {cards.length}</p>
@@ -305,15 +486,13 @@ export const TeacherGachaCardsPage = () => {
               <div className="mt-6 min-h-0 flex-1 overflow-auto pr-2">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="rounded-3xl border border-border bg-background"
-                    >
+                    <div key={card.id} className="rounded-3xl border border-border bg-background">
                       <div className="px-3 pt-3">
                         <GachaCard
                           rarity={card.rarity}
                           imageUrl={card.image_url}
                           alt={card.title}
+                          imageTransform={card.image_transform}
                         />
                       </div>
 
@@ -333,10 +512,7 @@ export const TeacherGachaCardsPage = () => {
                             <select
                               value={card.rarity}
                               onChange={(event) =>
-                                handleRarityChange(
-                                  card.id,
-                                  event.target.value as GachaCardRarity,
-                                )
+                                handleRarityChange(card.id, event.target.value as GachaCardRarity)
                               }
                               disabled={rarityUpdatingCardId === card.id}
                               aria-label={`Редкость карты ${card.title}`}
@@ -354,7 +530,7 @@ export const TeacherGachaCardsPage = () => {
                         {!isFinalized ? (
                           <button
                             type="button"
-                            onClick={() => handleDelete(card.id)}
+                            onClick={() => handleDelete(card)}
                             className="mt-4 w-full rounded-2xl border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:bg-secondary"
                           >
                             Удалить

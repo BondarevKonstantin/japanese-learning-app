@@ -111,7 +111,6 @@ export const GachaCollectionPage = () => {
               Просматривай открытые карты, ищи по названию и фильтруй по редкости
             </p>
           </div>
-
         </div>
 
         <div className="mt-8 flex min-h-0 flex-1 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
@@ -179,16 +178,14 @@ export const GachaCollectionPage = () => {
             <div className="mt-6 min-h-0 flex-1 overflow-auto pr-2">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {filteredCards.map((card) => (
-                  <div
-                    key={card.id}
-                    className="rounded-3xl border border-border bg-background"
-                  >
+                  <div key={card.id} className="rounded-3xl border border-border bg-background">
                     <div className="px-3 pt-3">
                       <GachaCard
                         rarity={card.rarity}
                         imageUrl={card.isUnlocked ? card.image_url : ''}
                         alt={card.isUnlocked ? card.title : 'Закрытая карта'}
                         isLocked={!card.isUnlocked}
+                        imageTransform={card.isUnlocked ? card.image_transform : null}
                       />
                     </div>
 

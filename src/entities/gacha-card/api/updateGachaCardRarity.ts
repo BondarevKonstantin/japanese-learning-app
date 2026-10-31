@@ -1,3 +1,4 @@
+import { mapGachaCard } from '@/entities/gacha-card/lib/mapGachaCard';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
 
@@ -24,5 +25,5 @@ export const updateGachaCardRarity = async ({
     throw new Error(error.message);
   }
 
-  return data;
+  return mapGachaCard(data);
 };

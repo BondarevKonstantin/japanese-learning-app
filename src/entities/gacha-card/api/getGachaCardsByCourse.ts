@@ -1,3 +1,4 @@
+import { mapGachaCard } from '@/entities/gacha-card/lib/mapGachaCard';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCard } from '@/entities/gacha-card/model/types';
 
@@ -12,5 +13,5 @@ export const getGachaCardsByCourse = async (courseId: string): Promise<GachaCard
     throw error;
   }
 
-  return data ?? [];
+  return (data ?? []).map((row) => mapGachaCard(row));
 };

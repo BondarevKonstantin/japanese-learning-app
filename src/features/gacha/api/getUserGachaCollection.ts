@@ -1,3 +1,4 @@
+import { mapGachaCard } from '@/entities/gacha-card/lib/mapGachaCard';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCard } from '@/entities/gacha-card/model/types';
 
@@ -34,9 +35,13 @@ export const getUserGachaCollection = async (
     (unlockedCards ?? []).map((item) => [item.card_id, item.unlocked_at]),
   );
 
-  return (cards ?? []).map((card) => ({
-    ...card,
-    isUnlocked: unlockedMap.has(card.id),
-    unlockedAt: unlockedMap.get(card.id) ?? null,
-  }));
+  return (cards ?? []).map((card) => {
+    const mappedCard = mapGachaCard(card);
+
+    return {
+      ...mappedCard,
+      isUnlocked: unlockedMap.has(mappedCard.id),
+      unlockedAt: unlockedMap.get(mappedCard.id) ?? null,
+    };
+  });
 };
