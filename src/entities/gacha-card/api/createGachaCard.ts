@@ -4,34 +4,45 @@ import type { GachaCardRarity, GachaImageTransform } from '@/entities/gacha-card
 type CreateGachaCardParams = {
   courseId: string;
   title: string;
+  description: string;
   imageStoragePath: string;
   imageTransform: GachaImageTransform;
   rarity: GachaCardRarity;
-  createdBy: string;
 };
 
 export const createGachaCard = async ({
   courseId,
   title,
+  description,
   imageStoragePath,
   imageTransform,
   rarity,
-  createdBy,
 }: CreateGachaCardParams) => {
-  const { error } = await supabase.from('gacha_cards').insert({
-    course_id: courseId,
-    title,
-    image_storage_path: imageStoragePath,
-    image_transform: {
+  const trimmedTitle = title.trim();
+  const trimmedDescription = description.trim();
+
+  if (trimmedTitle.length === 0) {
+    throw new Error('Укажите название на японском');
+  }
+
+  if (trimmedDescription.length === 0) {
+    throw new Error('Укажите описание');
+  }
+
+  const { error } = await supabase.rpc('create_gacha_card', {
+    p_course_id: courseId,
+    p_title: trimmedTitle,
+    p_description: trimmedDescription,
+    p_image_storage_path: imageStoragePath,
+    p_image_transform: {
       scale: imageTransform.scale,
       offsetX: imageTransform.offsetX,
       offsetY: imageTransform.offsetY,
     },
-    rarity,
-    created_by: createdBy,
+    p_rarity: rarity,
   });
 
   if (error) {
-    throw error;
+    throw new Error(error.message);
   }
 };

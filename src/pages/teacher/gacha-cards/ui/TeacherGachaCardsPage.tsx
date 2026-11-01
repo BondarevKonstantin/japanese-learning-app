@@ -9,6 +9,7 @@ import {
 } from '@/entities/gacha-card/api/gachaCardImageStorage';
 import { deleteGachaCard } from '@/entities/gacha-card/api/deleteGachaCard';
 import { getGachaCardsByCourse } from '@/entities/gacha-card/api/getGachaCardsByCourse';
+import { saveGachaCardDescription } from '@/entities/gacha-card/api/saveGachaCardDescription';
 import { updateGachaCardRarity } from '@/entities/gacha-card/api/updateGachaCardRarity';
 import { readGachaCardImageFile } from '@/entities/gacha-card/lib/readGachaCardImageFile';
 import {
@@ -17,9 +18,9 @@ import {
 } from '@/entities/gacha-card/model/imageTransform';
 import type { ImageSize } from '@/entities/gacha-card/model/imageTransform';
 import type {
-  GachaCard as GachaCardData,
   GachaCardRarity,
   GachaImageTransform,
+  TeacherGachaCard,
 } from '@/entities/gacha-card/model/types';
 import { GachaCard } from '@/entities/gacha-card/ui/GachaCard';
 import type { CourseGachaConfig } from '@/entities/gacha/model/types';
@@ -44,13 +45,18 @@ const rarityClassMap: Record<GachaCardRarity, string> = {
   legendary: 'border-accent bg-accent text-white',
 };
 
+const savedDescriptionText = (card: TeacherGachaCard) => card.description?.description.trim() ?? '';
+
 export const TeacherGachaCardsPage = () => {
   const { user } = useAuth();
   const { courseId } = useParams<{ courseId: string }>();
 
-  const [cards, setCards] = useState<GachaCardData[]>([]);
+  const [cards, setCards] = useState<TeacherGachaCard[]>([]);
   const [gachaConfig, setGachaConfig] = useState<CourseGachaConfig | null>(null);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [descriptionDrafts, setDescriptionDrafts] = useState<Record<string, string>>({});
+  const [descriptionErrors, setDescriptionErrors] = useState<Record<string, string>>({});
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -64,11 +70,13 @@ export const TeacherGachaCardsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [rarityUpdatingCardId, setRarityUpdatingCardId] = useState<string | null>(null);
+  const [descriptionSavingCardId, setDescriptionSavingCardId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const fileRequestRef = useRef(0);
   const previewUrlRef = useRef<string | null>(null);
   const readingImageRef = useRef(false);
   const submitLockRef = useRef(false);
+  const descriptionSaveLockRef = useRef(false);
 
   const replacePreviewUrl = (nextUrl: string | null) => {
     if (previewUrlRef.current) {
@@ -89,6 +97,28 @@ export const TeacherGachaCardsPage = () => {
       setErrorMessage('');
       setCards(nextCards);
       setGachaConfig(nextConfig);
+      setDescriptionDrafts((current) => {
+        const next: Record<string, string> = {};
+
+        for (const card of nextCards) {
+          next[card.id] = current[card.id] ?? card.description?.description ?? '';
+        }
+
+        return next;
+      });
+      setDescriptionErrors((current) => {
+        const next: Record<string, string> = {};
+
+        for (const card of nextCards) {
+          const message = current[card.id];
+
+          if (message) {
+            next[card.id] = message;
+          }
+        }
+
+        return next;
+      });
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось загрузить данные гачи';
@@ -203,6 +233,19 @@ export const TeacherGachaCardsPage = () => {
       return;
     }
 
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+
+    if (trimmedTitle.length === 0) {
+      setErrorMessage('Укажите название на японском');
+      return;
+    }
+
+    if (trimmedDescription.length === 0) {
+      setErrorMessage('Укажите описание');
+      return;
+    }
+
     if (!imageFile || !imageSize) {
       setErrorMessage('Выберите изображение');
       return;
@@ -224,14 +267,15 @@ export const TeacherGachaCardsPage = () => {
 
       await createGachaCard({
         courseId,
-        title,
+        title: trimmedTitle,
+        description: trimmedDescription,
         imageStoragePath: uploadedImage.path,
         imageTransform,
         rarity,
-        createdBy: user.id,
       });
 
       setTitle('');
+      setDescription('');
       setRarity('common');
       setImageFile(null);
       setImageSize(null);
@@ -257,7 +301,7 @@ export const TeacherGachaCardsPage = () => {
     }
   };
 
-  const handleDelete = async (card: GachaCardData) => {
+  const handleDelete = async (card: TeacherGachaCard) => {
     if (!courseId) return;
 
     if (isFinalized) {
@@ -309,13 +353,68 @@ export const TeacherGachaCardsPage = () => {
       });
 
       setCards((currentCards) =>
-        currentCards.map((card) => (card.id === updatedCard.id ? updatedCard : card)),
+        currentCards.map((card) =>
+          card.id === updatedCard.id
+            ? {
+                ...updatedCard,
+                description: card.description,
+              }
+            : card,
+        ),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось изменить редкость карты';
       setErrorMessage(message);
     } finally {
       setRarityUpdatingCardId(null);
+    }
+  };
+
+  const handleSaveDescription = async (card: TeacherGachaCard) => {
+    if (descriptionSaveLockRef.current || descriptionSavingCardId !== null || isFinalizing || submitLockRef.current) {
+      return;
+    }
+
+    const nextDescription = (descriptionDrafts[card.id] ?? '').trim();
+
+    if (nextDescription.length === 0) {
+      setDescriptionErrors((current) => ({
+        ...current,
+        [card.id]: 'Укажите описание',
+      }));
+      return;
+    }
+
+    descriptionSaveLockRef.current = true;
+    setDescriptionSavingCardId(card.id);
+    setDescriptionErrors((current) => {
+      const next = { ...current };
+      delete next[card.id];
+      return next;
+    });
+
+    try {
+      const saved = await saveGachaCardDescription({
+        cardId: card.id,
+        description: nextDescription,
+      });
+
+      setCards((currentCards) =>
+        currentCards.map((item) => (item.id === card.id ? { ...item, description: saved } : item)),
+      );
+      setDescriptionDrafts((current) => ({
+        ...current,
+        [card.id]: saved.description,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось сохранить описание';
+      setDescriptionErrors((current) => ({
+        ...current,
+        [card.id]: message,
+      }));
+    } finally {
+      descriptionSaveLockRef.current = false;
+      setDescriptionSavingCardId(null);
     }
   };
 
@@ -326,6 +425,8 @@ export const TeacherGachaCardsPage = () => {
       isLoading ||
       isSubmitting ||
       isFinalizing ||
+      descriptionSavingCardId ||
+      descriptionSaveLockRef.current ||
       submitLockRef.current
     ) {
       return;
@@ -370,6 +471,11 @@ export const TeacherGachaCardsPage = () => {
             <p className="text-sm font-medium text-accent">Teacher panel</p>
             <h1 className="mt-2 text-3xl font-bold text-text-primary">Гача-карты</h1>
             <p className="mt-2 text-text-secondary">Добавление и просмотр карт для курса</p>
+            {!isFinalized && cards.some((card) => savedDescriptionText(card).length === 0) ? (
+              <p className="mt-2 text-sm text-text-secondary">
+                Перед финализацией у каждой карты должно быть описание.
+              </p>
+            ) : null}
           </div>
 
           {isFinalized ? (
@@ -385,7 +491,9 @@ export const TeacherGachaCardsPage = () => {
             <button
               type="button"
               onClick={handleFinalize}
-              disabled={isLoading || isSubmitting || isFinalizing}
+              disabled={
+                isLoading || isSubmitting || isFinalizing || descriptionSavingCardId !== null
+              }
               className="min-h-11 w-full rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {isFinalizing ? 'Финализация...' : 'Финализировать карточки курса'}
@@ -410,13 +518,27 @@ export const TeacherGachaCardsPage = () => {
 
               <form className="mt-6 flex flex-1 flex-col gap-4" onSubmit={handleSubmit}>
                 <label className="flex flex-col gap-2">
-                  <span className="text-sm font-medium text-text-primary">Название</span>
+                  <span className="text-sm font-medium text-text-primary">
+                    Название на японском
+                  </span>
                   <input
                     type="text"
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
                     placeholder="Например, かわいい"
+                    required
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-text-primary">Описание</span>
+                  <textarea
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    rows={4}
+                    className="rounded-2xl border border-border bg-background px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light"
+                    placeholder="Текст, который ученик увидит после открытия карты"
                     required
                   />
                 </label>
@@ -471,7 +593,12 @@ export const TeacherGachaCardsPage = () => {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || isReadingImage}
+                  disabled={
+                    isSubmitting ||
+                    isReadingImage ||
+                    title.trim().length === 0 ||
+                    description.trim().length === 0
+                  }
                   className="mt-2 rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? 'Создание...' : 'Создать карту'}
@@ -533,6 +660,62 @@ export const TeacherGachaCardsPage = () => {
                               ))}
                             </select>
                           )}
+                        </div>
+
+                        <div className="mt-4">
+                          <p className="max-h-40 overflow-y-auto text-sm whitespace-pre-wrap break-words text-text-secondary">
+                            {savedDescriptionText(card).length > 0
+                              ? card.description?.description
+                              : 'Описание не добавлено'}
+                          </p>
+
+                          <label className="mt-3 flex flex-col gap-2">
+                            <span className="text-sm font-medium text-text-primary">Описание</span>
+                            <textarea
+                              value={descriptionDrafts[card.id] ?? ''}
+                              onChange={(event) => {
+                                const nextValue = event.target.value;
+                                setDescriptionDrafts((current) => ({
+                                  ...current,
+                                  [card.id]: nextValue,
+                                }));
+                                setDescriptionErrors((current) => {
+                                  if (!current[card.id]) {
+                                    return current;
+                                  }
+
+                                  const next = { ...current };
+                                  delete next[card.id];
+                                  return next;
+                                });
+                              }}
+                              rows={3}
+                              disabled={descriptionSavingCardId === card.id || isFinalizing}
+                              aria-label={`Описание карты ${card.title}`}
+                              className="rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-60"
+                            />
+                          </label>
+
+                          {descriptionErrors[card.id] ? (
+                            <p className="mt-2 text-sm text-accent">{descriptionErrors[card.id]}</p>
+                          ) : null}
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleSaveDescription(card);
+                            }}
+                            disabled={
+                              descriptionSavingCardId !== null ||
+                              isFinalizing ||
+                              (descriptionDrafts[card.id] ?? '').trim().length === 0
+                            }
+                            className="mt-3 w-full rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {descriptionSavingCardId === card.id
+                              ? 'Сохранение...'
+                              : 'Сохранить описание'}
+                          </button>
                         </div>
 
                         {!isFinalized ? (

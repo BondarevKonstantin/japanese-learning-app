@@ -19,3 +19,12 @@ export type GachaCard = {
   created_at: string;
   updated_at: string;
 };
+
+export type GachaCardDescription = {
+  card_id: string;
+  description: string;
+};
+
+export type TeacherGachaCard = GachaCard & {
+  description: GachaCardDescription | null;
+};
