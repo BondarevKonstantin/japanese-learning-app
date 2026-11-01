@@ -225,7 +225,7 @@ export const TeacherGachaCardsPage = () => {
       await createGachaCard({
         courseId,
         title,
-        imageUrl: uploadedImage.publicUrl,
+        imageStoragePath: uploadedImage.path,
         imageTransform,
         rarity,
         createdBy: user.id,
@@ -276,7 +276,7 @@ export const TeacherGachaCardsPage = () => {
     let cleanupFailed = false;
 
     try {
-      await deleteStoredGachaCardImageIfOwned(card.image_url, card.course_id);
+      await deleteStoredGachaCardImageIfOwned(card.image_storage_path, card.course_id);
     } catch {
       cleanupFailed = true;
     }
@@ -284,10 +284,11 @@ export const TeacherGachaCardsPage = () => {
     const loaded = await loadPageData(courseId);
 
     if (cleanupFailed) {
+      const storagePath = card.image_storage_path;
       setErrorMessage(
         loaded
-          ? 'Карта удалена, но файл изображения мог остаться в хранилище.'
-          : 'Карта удалена, но файл изображения мог остаться в хранилище. Не удалось обновить галерею.',
+          ? `Карта удалена, но файл изображения остался в хранилище: ${storagePath}.`
+          : `Карта удалена, но файл изображения остался в хранилище: ${storagePath}. Не удалось обновить галерею.`,
       );
     }
   };
@@ -319,7 +320,14 @@ export const TeacherGachaCardsPage = () => {
   };
 
   const handleFinalize = async () => {
-    if (!courseId || isFinalized) {
+    if (
+      !courseId ||
+      isFinalized ||
+      isLoading ||
+      isSubmitting ||
+      isFinalizing ||
+      submitLockRef.current
+    ) {
       return;
     }
 
@@ -377,7 +385,7 @@ export const TeacherGachaCardsPage = () => {
             <button
               type="button"
               onClick={handleFinalize}
-              disabled={isLoading || isFinalizing}
+              disabled={isLoading || isSubmitting || isFinalizing}
               className="min-h-11 w-full rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {isFinalizing ? 'Финализация...' : 'Финализировать карточки курса'}
@@ -490,7 +498,7 @@ export const TeacherGachaCardsPage = () => {
                       <div className="px-3 pt-3">
                         <GachaCard
                           rarity={card.rarity}
-                          imageUrl={card.image_url}
+                          imageUrl={card.image_url ?? ''}
                           alt={card.title}
                           imageTransform={card.image_transform}
                         />

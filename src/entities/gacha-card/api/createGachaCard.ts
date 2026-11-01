@@ -4,7 +4,7 @@ import type { GachaCardRarity, GachaImageTransform } from '@/entities/gacha-card
 type CreateGachaCardParams = {
   courseId: string;
   title: string;
-  imageUrl: string;
+  imageStoragePath: string;
   imageTransform: GachaImageTransform;
   rarity: GachaCardRarity;
   createdBy: string;
@@ -13,7 +13,7 @@ type CreateGachaCardParams = {
 export const createGachaCard = async ({
   courseId,
   title,
-  imageUrl,
+  imageStoragePath,
   imageTransform,
   rarity,
   createdBy,
@@ -21,7 +21,7 @@ export const createGachaCard = async ({
   const { error } = await supabase.from('gacha_cards').insert({
     course_id: courseId,
     title,
-    image_url: imageUrl,
+    image_storage_path: imageStoragePath,
     image_transform: {
       scale: imageTransform.scale,
       offsetX: imageTransform.offsetX,

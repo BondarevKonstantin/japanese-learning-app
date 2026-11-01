@@ -182,7 +182,7 @@ export const GachaCollectionPage = () => {
                     <div className="px-3 pt-3">
                       <GachaCard
                         rarity={card.rarity}
-                        imageUrl={card.isUnlocked ? card.image_url : ''}
+                        imageUrl={card.isUnlocked && card.image_url ? card.image_url : ''}
                         alt={card.isUnlocked ? card.title : 'Закрытая карта'}
                         isLocked={!card.isUnlocked}
                         imageTransform={card.isUnlocked ? card.image_transform : null}

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
+import { createGachaCardImageSignedUrls } from '@/entities/gacha-card/api/gachaCardImageStorage';
+import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
+import type { SpinGachaCardDrop } from '@/entities/gacha/model/types';
 import {
   getUserCourseGachaOverview,
   type UserCourseGachaOverview,
 } from '@/features/gacha/api/getUserCourseGachaOverview';
 import { spinGacha } from '@/features/gacha/api/spinGacha';
-import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
-import type { SpinGachaCardDrop } from '@/entities/gacha/model/types';
 
 import { useParams, Link } from 'react-router-dom';
 import { routes } from '@/shared/config/routes';
@@ -70,8 +71,26 @@ export const GachaPage = () => {
 
     try {
       const result = await spinGacha(courseId);
+      let cards = result.cards;
 
-      setLastPullCards(result.cards);
+      try {
+        const signedUrls = await createGachaCardImageSignedUrls(
+          cards.map((card) => card.image_storage_path),
+        );
+        cards = cards.map((card) => ({
+          ...card,
+          image_url: signedUrls.get(card.image_storage_path) ?? null,
+        }));
+      } catch (signError) {
+        const message =
+          signError instanceof Error
+            ? signError.message
+            : 'Не удалось загрузить изображения выпавших карт';
+        setErrorMessage(message);
+        cards = cards.map((card) => ({ ...card, image_url: null }));
+      }
+
+      setLastPullCards(cards);
       setOverview({
         availablePulls: result.state.available_pulls,
         usedPulls: result.state.used_pulls,

@@ -1,3 +1,4 @@
+import { createGachaCardImageSignedUrls } from '@/entities/gacha-card/api/gachaCardImageStorage';
 import { mapGachaCard } from '@/entities/gacha-card/lib/mapGachaCard';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCard } from '@/entities/gacha-card/model/types';
@@ -35,13 +36,37 @@ export const getUserGachaCollection = async (
     (unlockedCards ?? []).map((item) => [item.card_id, item.unlocked_at]),
   );
 
-  return (cards ?? []).map((card) => {
+  const items = (cards ?? []).map((card) => {
     const mappedCard = mapGachaCard(card);
 
     return {
       ...mappedCard,
       isUnlocked: unlockedMap.has(mappedCard.id),
       unlockedAt: unlockedMap.get(mappedCard.id) ?? null,
+    };
+  });
+
+  const signedUrls = await createGachaCardImageSignedUrls(
+    items.filter((item) => item.isUnlocked).map((item) => item.image_storage_path),
+  );
+
+  return items.map((item) => {
+    if (!item.isUnlocked) {
+      return {
+        ...item,
+        image_url: null,
+      };
+    }
+
+    const imageUrl = signedUrls.get(item.image_storage_path);
+
+    if (!imageUrl) {
+      throw new Error('Не удалось создать ссылку на изображение открытой карты');
+    }
+
+    return {
+      ...item,
+      image_url: imageUrl,
     };
   });
 };

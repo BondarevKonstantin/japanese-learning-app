@@ -25,6 +25,7 @@ export type UserCourseGachaStateDto = {
 export type SpinGachaCardDrop = {
   id: string;
   title: string;
+  image_storage_path: string;
   image_url: string | null;
   rarity: GachaCardRarity;
   was_new: boolean;

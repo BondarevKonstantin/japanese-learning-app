@@ -1,3 +1,4 @@
+import { createGachaCardImageSignedUrl } from '@/entities/gacha-card/api/gachaCardImageStorage';
 import { mapGachaCard } from '@/entities/gacha-card/lib/mapGachaCard';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCard, GachaCardRarity } from '@/entities/gacha-card/model/types';
@@ -25,5 +26,10 @@ export const updateGachaCardRarity = async ({
     throw new Error(error.message);
   }
 
-  return mapGachaCard(data);
+  const card = mapGachaCard(data);
+
+  return {
+    ...card,
+    image_url: await createGachaCardImageSignedUrl(card.image_storage_path),
+  };
 };
