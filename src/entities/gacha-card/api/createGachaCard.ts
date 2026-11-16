@@ -1,3 +1,4 @@
+import { serializeGachaImageTransform } from '@/entities/gacha-card/model/imageTransform';
 import { supabase } from '@/shared/api/supabase/client';
 import type { GachaCardRarity, GachaImageTransform } from '@/entities/gacha-card/model/types';
 
@@ -34,11 +35,7 @@ export const createGachaCard = async ({
     p_title: trimmedTitle,
     p_description: trimmedDescription,
     p_image_storage_path: imageStoragePath,
-    p_image_transform: {
-      scale: imageTransform.scale,
-      offsetX: imageTransform.offsetX,
-      offsetY: imageTransform.offsetY,
-    },
+    p_image_transform: serializeGachaImageTransform(imageTransform),
     p_rarity: rarity,
   });
 

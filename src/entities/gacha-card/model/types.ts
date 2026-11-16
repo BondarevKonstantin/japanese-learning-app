@@ -1,9 +1,13 @@
 export type GachaCardRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
+export type GachaImageFit = 'cover' | 'contain';
+
 export type GachaImageTransform = {
   scale: number;
   offsetX: number;
   offsetY: number;
+  /** Missing values from older rows are read as cover. */
+  fit: GachaImageFit;
 };
 
 export type GachaCard = {

@@ -1,4 +1,8 @@
-import type { GachaCardRarity, GachaImageTransform } from '@/entities/gacha-card/model/types';
+import type {
+  GachaCardRarity,
+  GachaImageFit,
+  GachaImageTransform,
+} from '@/entities/gacha-card/model/types';
 
 export const GACHA_CANVAS_ASPECT = 2 / 3;
 export const GACHA_IMAGE_SCALE_MIN = 1;
@@ -46,6 +50,7 @@ export const createDefaultGachaImageTransform = (): GachaImageTransform => ({
   scale: GACHA_IMAGE_SCALE_MIN,
   offsetX: 0,
   offsetY: 0,
+  fit: 'cover',
 });
 
 export const getGachaMaskWindow = (rarity: GachaCardRarity): GachaMaskWindow => {
@@ -80,12 +85,50 @@ const getDisplayedImageSize = (imageSize: ImageSize, scale: number) => {
   };
 };
 
-const normalizeScale = (scale: number) => {
-  if (!Number.isFinite(scale)) {
-    return GACHA_IMAGE_SCALE_MIN;
+/**
+ * Scale stays relative to the object-cover base in both modes.
+ * Contain's minimum is the largest scale that still fits the source
+ * inside the rarity window. Cover keeps the original 1..3 range.
+ */
+export const getGachaImageScaleBounds = (
+  imageSize: ImageSize,
+  rarity: GachaCardRarity,
+  fit: GachaImageFit,
+): { min: number; max: number } => {
+  if (fit !== 'contain' || !(imageSize.width > 0) || !(imageSize.height > 0)) {
+    return { min: GACHA_IMAGE_SCALE_MIN, max: GACHA_IMAGE_SCALE_MAX };
   }
 
-  return clampNumber(scale, GACHA_IMAGE_SCALE_MIN, GACHA_IMAGE_SCALE_MAX);
+  const base = getBaseCoverSize(imageSize);
+  const maskWindow = getGachaMaskWindow(rarity);
+  const containScale = Math.min(
+    (maskWindow.right - maskWindow.left) / base.width,
+    (maskWindow.bottom - maskWindow.top) / base.height,
+  );
+
+  if (!Number.isFinite(containScale) || containScale <= 0) {
+    return { min: GACHA_IMAGE_SCALE_MIN, max: GACHA_IMAGE_SCALE_MAX };
+  }
+
+  return {
+    min: Math.min(containScale, GACHA_IMAGE_SCALE_MIN),
+    max: GACHA_IMAGE_SCALE_MAX,
+  };
+};
+
+const normalizeScale = (
+  scale: number,
+  imageSize: ImageSize,
+  rarity: GachaCardRarity,
+  fit: GachaImageFit,
+) => {
+  const bounds = getGachaImageScaleBounds(imageSize, rarity, fit);
+
+  if (!Number.isFinite(scale)) {
+    return bounds.min;
+  }
+
+  return clampNumber(scale, bounds.min, bounds.max);
 };
 
 const clampOffsetToWindow = (
@@ -93,11 +136,17 @@ const clampOffsetToWindow = (
   displayedExtent: number,
   windowStart: number,
   windowEnd: number,
+  fit: GachaImageFit,
 ) => {
   const half = displayedExtent / 2;
-  const min = windowEnd - half - 0.5;
-  const max = windowStart + half - 0.5;
+  const coverMin = windowEnd - half - 0.5;
+  const coverMax = windowStart + half - 0.5;
   const safeOffset = Number.isFinite(offset) ? offset : 0;
+  // A contain image smaller than the window slides inside it. At and above
+  // the window size, the cover limits keep the window filled.
+  const containInside = fit === 'contain' && coverMin > coverMax;
+  const min = containInside ? coverMax : coverMin;
+  const max = containInside ? coverMin : coverMax;
   const lower = Math.max(min, -GACHA_IMAGE_OFFSET_LIMIT);
   const upper = Math.min(max, GACHA_IMAGE_OFFSET_LIMIT);
 
@@ -117,7 +166,8 @@ export const normalizeGachaImageTransform = (
     return createDefaultGachaImageTransform();
   }
 
-  const scale = normalizeScale(transform.scale);
+  const fit: GachaImageFit = transform.fit === 'contain' ? 'contain' : 'cover';
+  const scale = normalizeScale(transform.scale, imageSize, rarity, fit);
   const displayed = getDisplayedImageSize(imageSize, scale);
   const maskWindow = getGachaMaskWindow(rarity);
 
@@ -128,13 +178,16 @@ export const normalizeGachaImageTransform = (
       displayed.width,
       maskWindow.left,
       maskWindow.right,
+      fit,
     ),
     offsetY: clampOffsetToWindow(
       transform.offsetY,
       displayed.height,
       maskWindow.top,
       maskWindow.bottom,
+      fit,
     ),
+    fit,
   };
 };
 
@@ -164,6 +217,7 @@ export const moveGachaImageByPointer = (
       scale: origin.scale,
       offsetX: origin.offsetX + delta.offsetX,
       offsetY: origin.offsetY + delta.offsetY,
+      fit: origin.fit,
     },
     imageSize,
     rarity,
@@ -190,9 +244,41 @@ export const getGachaImagePlacement = (
   };
 };
 
+export const serializeGachaImageTransform = (transform: GachaImageTransform) => {
+  const placement = {
+    scale: transform.scale,
+    offsetX: transform.offsetX,
+    offsetY: transform.offsetY,
+  };
+
+  // Cover omits fit so the stored object stays the original three keys.
+  if (transform.fit === 'contain') {
+    return { ...placement, fit: 'contain' as const };
+  }
+
+  return placement;
+};
+
+const parseFit = (value: unknown): GachaImageFit | null => {
+  if (value === undefined) {
+    return 'cover';
+  }
+
+  if (value === 'cover' || value === 'contain') {
+    return value;
+  }
+
+  return null;
+};
+
 const parseTransformRecord = (value: object): GachaImageTransform | null => {
   const record = value as Record<string, unknown>;
   const { scale, offsetX, offsetY } = record;
+  const fit = parseFit(record.fit);
+
+  if (!fit) {
+    return null;
+  }
 
   if (typeof scale !== 'number' || typeof offsetX !== 'number' || typeof offsetY !== 'number') {
     return null;
@@ -202,7 +288,11 @@ const parseTransformRecord = (value: object): GachaImageTransform | null => {
     return null;
   }
 
-  if (scale < GACHA_IMAGE_SCALE_MIN || scale > GACHA_IMAGE_SCALE_MAX) {
+  if (fit === 'cover') {
+    if (scale < GACHA_IMAGE_SCALE_MIN || scale > GACHA_IMAGE_SCALE_MAX) {
+      return null;
+    }
+  } else if (!(scale > 0) || scale > GACHA_IMAGE_SCALE_MAX) {
     return null;
   }
 
@@ -213,7 +303,7 @@ const parseTransformRecord = (value: object): GachaImageTransform | null => {
     return null;
   }
 
-  return { scale, offsetX, offsetY };
+  return { scale, offsetX, offsetY, fit };
 };
 
 export const parseGachaImageTransform = (value: unknown): GachaImageTransform | null => {

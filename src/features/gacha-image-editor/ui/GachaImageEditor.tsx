@@ -5,14 +5,16 @@ import {
 } from 'react';
 import { GachaCard } from '@/entities/gacha-card/ui/GachaCard';
 import {
-  GACHA_IMAGE_SCALE_MAX,
-  GACHA_IMAGE_SCALE_MIN,
-  createDefaultGachaImageTransform,
+  getGachaImageScaleBounds,
   moveGachaImageByPointer,
   normalizeGachaImageTransform,
 } from '@/entities/gacha-card/model/imageTransform';
 import type { ImageSize } from '@/entities/gacha-card/model/imageTransform';
-import type { GachaCardRarity, GachaImageTransform } from '@/entities/gacha-card/model/types';
+import type {
+  GachaCardRarity,
+  GachaImageFit,
+  GachaImageTransform,
+} from '@/entities/gacha-card/model/types';
 
 type GachaImageEditorProps = {
   imageUrl: string;
@@ -22,6 +24,11 @@ type GachaImageEditorProps = {
   alt: string;
   onTransformChange: (transform: GachaImageTransform) => void;
 };
+
+const fitOptions: { fit: GachaImageFit; label: string }[] = [
+  { fit: 'cover', label: 'Заполнить рамку' },
+  { fit: 'contain', label: 'Показать целиком' },
+];
 
 type DragState = {
   pointerId: number;
@@ -41,7 +48,23 @@ export const GachaImageEditor = ({
   onTransformChange,
 }: GachaImageEditorProps) => {
   const dragRef = useRef<DragState | null>(null);
+  const scaleBounds = getGachaImageScaleBounds(imageSize, rarity, transform.fit);
   const scaleLabel = transform.scale.toFixed(2);
+
+  const handleFitChange = (fit: GachaImageFit) => {
+    if (fit === transform.fit) {
+      return;
+    }
+
+    const scale =
+      fit === 'contain'
+        ? getGachaImageScaleBounds(imageSize, rarity, 'contain').min
+        : Math.max(1, transform.scale);
+
+    onTransformChange(
+      normalizeGachaImageTransform({ ...transform, fit, scale }, imageSize, rarity),
+    );
+  };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || dragRef.current) {
@@ -146,6 +169,31 @@ export const GachaImageEditor = ({
 
       <p className="text-center text-xs text-text-secondary">Перетащите изображение внутри рамки</p>
 
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-text-primary">Кадрирование</span>
+        <div role="group" aria-label="Режим кадрирования" className="grid grid-cols-2 gap-2">
+          {fitOptions.map((option) => {
+            const selected = transform.fit === option.fit;
+
+            return (
+              <button
+                key={option.fit}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => handleFitChange(option.fit)}
+                className={`min-w-0 rounded-2xl border px-2 py-2 text-center text-sm font-medium leading-snug transition ${
+                  selected
+                    ? 'border-primary bg-primary-light text-text-primary'
+                    : 'border-border text-text-primary hover:bg-background'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <label className="flex flex-col gap-2">
         <span className="flex items-center justify-between gap-3 text-sm font-medium text-text-primary">
           <span>Масштаб</span>
@@ -153,12 +201,12 @@ export const GachaImageEditor = ({
         </span>
         <input
           type="range"
-          min={GACHA_IMAGE_SCALE_MIN}
-          max={GACHA_IMAGE_SCALE_MAX}
+          min={scaleBounds.min}
+          max={scaleBounds.max}
           step={0.01}
           value={transform.scale}
-          aria-valuemin={GACHA_IMAGE_SCALE_MIN}
-          aria-valuemax={GACHA_IMAGE_SCALE_MAX}
+          aria-valuemin={scaleBounds.min}
+          aria-valuemax={scaleBounds.max}
           aria-valuenow={transform.scale}
           aria-valuetext={scaleLabel}
           onChange={(event) => {
@@ -176,7 +224,20 @@ export const GachaImageEditor = ({
 
       <button
         type="button"
-        onClick={() => onTransformChange(createDefaultGachaImageTransform())}
+        onClick={() =>
+          onTransformChange(
+            normalizeGachaImageTransform(
+              {
+                scale: scaleBounds.min,
+                offsetX: 0,
+                offsetY: 0,
+                fit: transform.fit,
+              },
+              imageSize,
+              rarity,
+            ),
+          )
+        }
         className="rounded-2xl border border-border px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-background"
       >
         Сбросить
