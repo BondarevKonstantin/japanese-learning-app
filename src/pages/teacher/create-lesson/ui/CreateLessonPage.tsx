@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { createLesson } from '@/entities/lesson/api/createLesson';
 import { insertMarkdownImageAtCursor } from '@/features/lesson-theory-image-upload/lib/insertMarkdownImageAtCursor';
+import { TheoryMediaBlockControls } from '@/features/lesson-theory-media-block/ui/TheoryMediaBlockControls';
 import { routes } from '@/shared/config/routes';
 import { uploadLessonTheoryImage } from '@/entities/lesson/api/uploadLessonImage';
 
@@ -145,7 +146,6 @@ export const CreateLessonPage = () => {
             <h1 className="mt-2 text-3xl font-bold text-text-primary">Создание урока</h1>
             <p className="mt-2 text-text-secondary">Добавь новый урок в выбранный курс</p>
           </div>
-
         </div>
 
         <div className="mt-8 max-w-4xl rounded-3xl border border-border bg-surface p-6 shadow-sm">
@@ -179,7 +179,14 @@ export const CreateLessonPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-text-primary">Теория (markdown)</span>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <TheoryMediaBlockControls
+                    markdown={theoryMarkdown}
+                    textareaRef={theoryTextareaRef}
+                    disabled={isUploadingImage}
+                    onMarkdownChange={setTheoryMarkdown}
+                  />
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -220,7 +227,9 @@ export const CreateLessonPage = () => {
               />
 
               <p className="text-sm text-text-secondary">
-                Картинка вставится прямо в текущую позицию курсора в markdown.
+                Картинка вставится в текущую позицию курсора. Кнопка «Добавить блок изображений»
+                вставляет композицию. Если курсор находится внутри блока, кнопка называется
+                «Настроить блок изображений» и открывает его настройки.
               </p>
             </div>
 

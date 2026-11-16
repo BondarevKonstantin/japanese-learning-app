@@ -1,10 +1,62 @@
+import { isValidElement, useState, type ReactElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
+
+import {
+  isSafeImageUrl,
+  parseTheoryMediaBlock,
+  THEORY_MEDIA_FENCE_LANGUAGE,
+} from '@/shared/lib/theoryMediaBlock';
+import { ImageLightbox, type LightboxImage } from '@/shared/ui/ImageLightbox';
+import { TheoryMediaBlockView } from '@/shared/ui/TheoryMediaBlockView';
 
 type Props = {
   content: string;
 };
 
+const readFenceLanguage = (className: string | undefined): string | null => {
+  if (!className) {
+    return null;
+  }
+
+  const match = /(?:^|\s)language-([^\s]+)/.exec(className);
+  return match?.[1] ?? null;
+};
+
+const readNodeText = (children: ReactNode): string => {
+  if (typeof children === 'string' || typeof children === 'number') {
+    return String(children);
+  }
+
+  if (Array.isArray(children)) {
+    return children.map((child) => readNodeText(child)).join('');
+  }
+
+  return '';
+};
+
+const findMediaView = (children: ReactNode): ReactElement | null => {
+  const nodes = Array.isArray(children) ? children : [children];
+  const elements = nodes.filter((node) => isValidElement(node));
+  const mediaView = elements.length === 1 ? elements[0] : null;
+
+  if (mediaView?.type === TheoryMediaBlockView) {
+    return mediaView;
+  }
+
+  return null;
+};
+
 export const MarkdownRenderer = ({ content }: Props) => {
+  const [preview, setPreview] = useState<LightboxImage | null>(null);
+
+  const openImage = (src: string, alt: string) => {
+    if (!isSafeImageUrl(src)) {
+      return;
+    }
+
+    setPreview({ src, alt });
+  };
+
   return (
     <div className="text-text-primary leading-7">
       <ReactMarkdown
@@ -28,8 +80,8 @@ export const MarkdownRenderer = ({ content }: Props) => {
             <strong className="font-semibold text-text-primary">{children}</strong>
           ),
           em: ({ children }) => <em className="italic text-text-primary">{children}</em>,
-          ul: ({ children }) => <ul className="mb-4 list-disc pl-6 space-y-2">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-4 list-decimal pl-6 space-y-2">{children}</ol>,
+          ul: ({ children }) => <ul className="mb-4 list-disc space-y-2 pl-6">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-4 list-decimal space-y-2 pl-6">{children}</ol>,
           li: ({ children }) => <li>{children}</li>,
           blockquote: ({ children }) => (
             <blockquote className="mb-4 border-l-4 border-primary pl-4 italic text-text-secondary">
@@ -47,20 +99,53 @@ export const MarkdownRenderer = ({ content }: Props) => {
               {children}
             </a>
           ),
-          code: ({ children }) => (
-            <code className="rounded bg-surface px-1.5 py-0.5 text-sm">{children}</code>
-          ),
-          img: ({ ...props }) => (
-            <img
-              {...props}
-              onClick={() => window.open(props.src, '_blank')}
-              className="my-4 w-80 max-w-2xl cursor-zoom-in rounded-2xl border border-border transition hover:opacity-90"
-            />
-          ),
+          pre: ({ children }) => {
+            const mediaView = findMediaView(children);
+            if (mediaView) {
+              return mediaView;
+            }
+
+            return <pre>{children}</pre>;
+          },
+          code: ({ className, children }) => {
+            const source = readNodeText(children).replace(/\n$/, '');
+            if (readFenceLanguage(className) === THEORY_MEDIA_FENCE_LANGUAGE) {
+              const block = parseTheoryMediaBlock(source);
+              if (block) {
+                return <TheoryMediaBlockView block={block} onOpenImage={openImage} />;
+              }
+            }
+
+            return <code className="rounded bg-surface px-1.5 py-0.5 text-sm">{children}</code>;
+          },
+          img: ({ src, alt }) => {
+            const imageSrc = typeof src === 'string' ? src : '';
+            const imageAlt = typeof alt === 'string' ? alt : '';
+
+            if (!isSafeImageUrl(imageSrc)) {
+              return imageAlt ? <span>{imageAlt}</span> : null;
+            }
+
+            return (
+              <button
+                type="button"
+                className="my-4 block max-w-full cursor-zoom-in border-0 bg-transparent p-0 text-left"
+                aria-label={imageAlt ? `Увеличить: ${imageAlt}` : 'Увеличить изображение'}
+                onClick={() => openImage(imageSrc, imageAlt || 'Изображение')}
+              >
+                <img
+                  src={imageSrc}
+                  alt=""
+                  className="h-auto w-80 max-w-full rounded-2xl border border-border"
+                />
+              </button>
+            );
+          },
         }}
       >
         {content}
       </ReactMarkdown>
+      <ImageLightbox image={preview} onClose={() => setPreview(null)} />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { AppLayout } from '@/app/layouts/AppLayout';
 import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import { updateLesson } from '@/entities/lesson/api/updateLesson';
 import { insertMarkdownImageAtCursor } from '@/features/lesson-theory-image-upload/lib/insertMarkdownImageAtCursor';
+import { TheoryMediaBlockControls } from '@/features/lesson-theory-media-block/ui/TheoryMediaBlockControls';
 import { routes } from '@/shared/config/routes';
 import { uploadLessonTheoryImage } from '@/entities/lesson/api/uploadLessonImage';
 
@@ -176,7 +177,6 @@ export const EditLessonPage = () => {
             <h1 className="mt-2 text-3xl font-bold text-text-primary">Редактирование урока</h1>
             <p className="mt-2 text-text-secondary">Обнови название, описание и блок теории</p>
           </div>
-
         </div>
 
         <div className="mt-8 max-w-4xl rounded-3xl border border-border bg-surface p-6 shadow-sm">
@@ -212,7 +212,14 @@ export const EditLessonPage = () => {
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium text-text-primary">Теория (markdown)</span>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                      <TheoryMediaBlockControls
+                        markdown={theoryMarkdown}
+                        textareaRef={theoryTextareaRef}
+                        disabled={isUploadingImage}
+                        onMarkdownChange={setTheoryMarkdown}
+                      />
+
                       <input
                         ref={fileInputRef}
                         type="file"
@@ -248,8 +255,10 @@ export const EditLessonPage = () => {
                   />
 
                   <p className="text-sm text-text-secondary">
-                    Можно вставить картинку через Ctrl+V. Она загрузится и добавится в текущую
-                    позицию курсора.
+                    Можно вставить картинку через Ctrl+V: она загрузится в текущую позицию курсора.
+                    Кнопка «Добавить блок изображений» вставляет композицию. Если курсор находится
+                    внутри блока, кнопка называется «Настроить блок изображений» и открывает его
+                    настройки.
                   </p>
                 </div>
 
