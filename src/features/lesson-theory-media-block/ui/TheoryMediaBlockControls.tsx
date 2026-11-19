@@ -19,6 +19,7 @@ import {
   type TheoryMediaGap,
   type TheoryMediaImage,
 } from '@/shared/lib/theoryMediaBlock';
+import { findTheoryYoutubeBlockAtCursor } from '@/shared/lib/theoryYoutubeBlock';
 import { ImageLightbox, type LightboxImage } from '@/shared/ui/ImageLightbox';
 import { TheoryMediaBlockView } from '@/shared/ui/TheoryMediaBlockView';
 
@@ -166,9 +167,17 @@ export const TheoryMediaBlockControls = ({
 
   const openEditor = () => {
     const textarea = textareaRef.current;
-    const selectionStart = textarea?.selectionStart ?? markdown.length;
-    const selectionEnd = textarea?.selectionEnd ?? markdown.length;
+    let selectionStart = textarea?.selectionStart ?? markdown.length;
+    let selectionEnd = textarea?.selectionEnd ?? markdown.length;
     const span = findTheoryMediaBlockAtCursor(markdown, selectionStart);
+
+    if (!span && selectionStart === selectionEnd) {
+      const youtubeSpan = findTheoryYoutubeBlockAtCursor(markdown, selectionStart);
+      if (youtubeSpan) {
+        selectionStart = youtubeSpan.end;
+        selectionEnd = youtubeSpan.end;
+      }
+    }
 
     savedSelectionRef.current = { start: selectionStart, end: selectionEnd };
     closeActionRef.current = 'cancel';

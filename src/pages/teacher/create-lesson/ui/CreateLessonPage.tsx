@@ -5,6 +5,7 @@ import { AppLayout } from '@/app/layouts/AppLayout';
 import { createLesson } from '@/entities/lesson/api/createLesson';
 import { insertMarkdownImageAtCursor } from '@/features/lesson-theory-image-upload/lib/insertMarkdownImageAtCursor';
 import { TheoryMediaBlockControls } from '@/features/lesson-theory-media-block/ui/TheoryMediaBlockControls';
+import { TheoryYoutubeControls } from '@/features/lesson-theory-youtube/ui/TheoryYoutubeControls';
 import { routes } from '@/shared/config/routes';
 import { uploadLessonTheoryImage } from '@/entities/lesson/api/uploadLessonImage';
 
@@ -180,6 +181,13 @@ export const CreateLessonPage = () => {
                 <span className="text-sm font-medium text-text-primary">Теория (markdown)</span>
 
                 <div className="flex flex-wrap items-center justify-end gap-3">
+                  <TheoryYoutubeControls
+                    markdown={theoryMarkdown}
+                    textareaRef={theoryTextareaRef}
+                    disabled={isUploadingImage}
+                    onMarkdownChange={setTheoryMarkdown}
+                  />
+
                   <TheoryMediaBlockControls
                     markdown={theoryMarkdown}
                     textareaRef={theoryTextareaRef}
@@ -229,7 +237,9 @@ export const CreateLessonPage = () => {
               <p className="text-sm text-text-secondary">
                 Картинка вставится в текущую позицию курсора. Кнопка «Добавить блок изображений»
                 вставляет композицию. Если курсор находится внутри блока, кнопка называется
-                «Настроить блок изображений» и открывает его настройки.
+                «Настроить блок изображений» и открывает его настройки. Кнопка «Добавить видео»
+                вставляет ролик YouTube. Если курсор внутри видеоблока, она называется «Настроить
+                видео».
               </p>
             </div>
 

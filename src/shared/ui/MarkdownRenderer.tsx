@@ -6,8 +6,13 @@ import {
   parseTheoryMediaBlock,
   THEORY_MEDIA_FENCE_LANGUAGE,
 } from '@/shared/lib/theoryMediaBlock';
+import {
+  parseTheoryYoutubeBlock,
+  THEORY_YOUTUBE_FENCE_LANGUAGE,
+} from '@/shared/lib/theoryYoutubeBlock';
 import { ImageLightbox, type LightboxImage } from '@/shared/ui/ImageLightbox';
 import { TheoryMediaBlockView } from '@/shared/ui/TheoryMediaBlockView';
+import { TheoryYoutubeBlockView } from '@/shared/ui/TheoryYoutubeBlockView';
 
 type Props = {
   content: string;
@@ -39,7 +44,7 @@ const findMediaView = (children: ReactNode): ReactElement | null => {
   const elements = nodes.filter((node) => isValidElement(node));
   const mediaView = elements.length === 1 ? elements[0] : null;
 
-  if (mediaView?.type === TheoryMediaBlockView) {
+  if (mediaView?.type === TheoryMediaBlockView || mediaView?.type === TheoryYoutubeBlockView) {
     return mediaView;
   }
 
@@ -109,10 +114,18 @@ export const MarkdownRenderer = ({ content }: Props) => {
           },
           code: ({ className, children }) => {
             const source = readNodeText(children).replace(/\n$/, '');
-            if (readFenceLanguage(className) === THEORY_MEDIA_FENCE_LANGUAGE) {
+            const language = readFenceLanguage(className);
+            if (language === THEORY_MEDIA_FENCE_LANGUAGE) {
               const block = parseTheoryMediaBlock(source);
               if (block) {
                 return <TheoryMediaBlockView block={block} onOpenImage={openImage} />;
+              }
+            }
+
+            if (language === THEORY_YOUTUBE_FENCE_LANGUAGE) {
+              const block = parseTheoryYoutubeBlock(source);
+              if (block) {
+                return <TheoryYoutubeBlockView videoId={block.videoId} />;
               }
             }
 
