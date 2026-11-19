@@ -227,12 +227,13 @@ export const TheoryYoutubeControls = ({
             </div>
           ) : (
             <form
-              className="mt-5 flex flex-col gap-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                handleApply();
-              }}
-            >
+  className="mt-5 flex flex-col gap-5"
+  onSubmit={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleApply();
+  }}
+>
               <label className="flex flex-col gap-2">
                 <span className="text-sm font-medium">Ссылка на YouTube</span>
                 <input
