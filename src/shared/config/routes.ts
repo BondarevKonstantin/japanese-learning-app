@@ -22,6 +22,7 @@ export const routes = {
   lessonResults: '/courses/:courseId/lessons/:lessonId/results',
 
   courseGacha: '/courses/:courseId/gacha',
+  courseGachaPlay: '/courses/:courseId/gacha/play',
   courseCollection: '/courses/:courseId/collection',
 
   teacherLessonSubmissions: '/teacher/courses/:courseId/lessons/:lessonId/submissions',

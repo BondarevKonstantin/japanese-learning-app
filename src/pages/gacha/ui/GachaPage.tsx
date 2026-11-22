@@ -1,31 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
-import { createGachaCardImageSignedUrls } from '@/entities/gacha-card/api/gachaCardImageStorage';
-import type { GachaCardRarity } from '@/entities/gacha-card/model/types';
-import type { SpinGachaCardDrop } from '@/entities/gacha/model/types';
 import {
   getUserCourseGachaOverview,
   type UserCourseGachaOverview,
 } from '@/features/gacha/api/getUserCourseGachaOverview';
-import { spinGacha } from '@/features/gacha/api/spinGacha';
-
-import { useParams, Link } from 'react-router-dom';
 import { routes } from '@/shared/config/routes';
-
-const rarityLabelMap: Record<GachaCardRarity, string> = {
-  common: 'Обычная',
-  rare: 'Редкая',
-  epic: 'Эпическая',
-  legendary: 'Легендарная',
-};
-
-const rarityClassMap: Record<GachaCardRarity, string> = {
-  common: 'border-border bg-background text-text-primary',
-  rare: 'border-primary bg-primary-light text-text-primary',
-  epic: 'border-accent bg-secondary text-accent',
-  legendary: 'border-accent bg-accent text-white',
-};
 
 export const GachaPage = () => {
   const { user } = useAuth();
@@ -33,10 +14,7 @@ export const GachaPage = () => {
   const userId = user?.id;
 
   const [overview, setOverview] = useState<UserCourseGachaOverview | null>(null);
-  const [lastPullCards, setLastPullCards] = useState<SpinGachaCardDrop[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
-  const [isSpinning, setIsSpinning] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const loadOverview = useCallback(async (targetCourseId: string, targetUserId: string) => {
@@ -63,50 +41,6 @@ export const GachaPage = () => {
     void loadOverview(courseId, userId);
   }, [courseId, loadOverview, userId]);
 
-  const handleSpin = async () => {
-    setErrorMessage('');
-    setIsSpinning(true);
-
-    if (!courseId) return;
-
-    try {
-      const result = await spinGacha(courseId);
-      let cards = result.cards;
-
-      try {
-        const signedUrls = await createGachaCardImageSignedUrls(
-          cards.map((card) => card.image_storage_path),
-        );
-        cards = cards.map((card) => ({
-          ...card,
-          image_url: signedUrls.get(card.image_storage_path) ?? null,
-        }));
-      } catch (signError) {
-        const message =
-          signError instanceof Error
-            ? signError.message
-            : 'Не удалось загрузить изображения выпавших карт';
-        setErrorMessage(message);
-        cards = cards.map((card) => ({ ...card, image_url: null }));
-      }
-
-      setLastPullCards(cards);
-      setOverview({
-        availablePulls: result.state.available_pulls,
-        usedPulls: result.state.used_pulls,
-        totalPullsEarned: result.state.total_pulls_earned,
-        unlockedCount: result.collection.unlocked_count,
-        totalCards: result.collection.total_count,
-        completed: result.collection.completed,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось выполнить крутку';
-      setErrorMessage(message);
-    } finally {
-      setIsSpinning(false);
-    }
-  };
-
   const totalCards = overview?.totalCards ?? 0;
   const unlockedCount = overview?.unlockedCount ?? 0;
   const availablePulls = overview?.availablePulls ?? 0;
@@ -114,8 +48,6 @@ export const GachaPage = () => {
   const completed = overview?.completed ?? false;
 
   const progressPercent = totalCards > 0 ? (unlockedCount / totalCards) * 100 : 0;
-
-  const canSpin = !isLoading && !isSpinning && totalCards > 0 && availablePulls > 0;
 
   if (!courseId) {
     return (
@@ -139,7 +71,7 @@ export const GachaPage = () => {
 
         </div>
 
-        <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[1fr_380px]">
+        <div className="mt-8 min-h-0 flex-1">
           <div className="flex min-h-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-text-primary">Прогресс</h2>
 
@@ -187,14 +119,12 @@ export const GachaPage = () => {
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSpin}
-                    disabled={!canSpin}
-                    className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  <Link
+                    to={routes.courseGachaPlay.replace(':courseId', courseId)}
+                    className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
                   >
-                    {isSpinning ? 'Крутим...' : 'Крутить'}
-                  </button>
+                    Крутить
+                  </Link>
 
                   <Link
                     to={routes.courseCollection.replace(':courseId', courseId)}
@@ -204,13 +134,11 @@ export const GachaPage = () => {
                   </Link>
                 </div>
 
-                {!errorMessage && !canSpin ? (
+                {!errorMessage && (totalCards === 0 || availablePulls === 0) ? (
                   <p className="mt-4 text-sm text-text-secondary">
                     {totalCards === 0
                       ? 'У этого курса пока нет гача-карт.'
-                      : availablePulls === 0
-                        ? 'Сейчас нет доступных круток.'
-                        : ''}
+                      : 'Сейчас нет доступных круток.'}
                   </p>
                 ) : null}
               </>
@@ -221,55 +149,6 @@ export const GachaPage = () => {
                 {errorMessage}
               </p>
             ) : null}
-          </div>
-
-          <div className="flex min-h-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold text-text-primary">Последняя крутка</h2>
-            </div>
-
-            {lastPullCards.length === 0 ? (
-              <div className="mt-6 flex min-h-[320px] items-center justify-center rounded-3xl border border-dashed border-border bg-background px-6 text-center text-text-secondary">
-                После первой крутки здесь появятся выпавшие карты
-              </div>
-            ) : (
-              <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-auto pr-2">
-                {lastPullCards.map((card) => (
-                  <div
-                    key={card.drop_number}
-                    className="overflow-hidden rounded-3xl border border-border bg-background"
-                  >
-                    <div className="aspect-[3/2] bg-surface">
-                      {card.image_url ? (
-                        <img
-                          src={card.image_url}
-                          alt={card.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : null}
-                    </div>
-
-                    <div className="p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <h3 className="text-lg font-semibold text-text-primary">{card.title}</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {card.was_new ? (
-                            <span className="rounded-full border border-primary bg-primary-light px-3 py-1 text-xs font-medium text-text-primary">
-                              Новая
-                            </span>
-                          ) : null}
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-medium ${rarityClassMap[card.rarity]}`}
-                          >
-                            {rarityLabelMap[card.rarity]}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

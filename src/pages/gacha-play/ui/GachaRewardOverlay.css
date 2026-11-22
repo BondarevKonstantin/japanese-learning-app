@@ -1,0 +1,65 @@
+@keyframes gacha-reward-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.gacha-reward-overlay {
+  animation: gacha-reward-overlay-in 320ms ease-out;
+}
+
+.gacha-reward-card {
+  transition:
+    transform 250ms ease-out,
+    filter 250ms ease-out,
+    box-shadow 250ms ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gacha-reward-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    filter: brightness(1.07);
+  }
+
+  .gacha-reward-card--common:hover {
+    box-shadow:
+      0 0 16px rgba(196, 165, 116, 0.42),
+      0 18px 32px rgba(42, 24, 8, 0.46);
+  }
+
+  .gacha-reward-card--rare:hover {
+    box-shadow:
+      0 0 18px rgba(47, 111, 237, 0.38),
+      0 18px 32px rgba(12, 36, 96, 0.5);
+  }
+
+  .gacha-reward-card--epic:hover {
+    box-shadow:
+      0 0 36px rgba(168, 85, 247, 0.7),
+      0 18px 32px rgba(48, 16, 92, 0.48);
+  }
+
+  .gacha-reward-card--legendary:hover {
+    box-shadow:
+      0 0 40px rgba(242, 193, 77, 0.74),
+      0 18px 32px rgba(92, 58, 8, 0.48);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gacha-reward-overlay {
+    animation: none;
+  }
+
+  .gacha-reward-card {
+    transition: none;
+  }
+
+  .gacha-reward-card:hover {
+    transform: none;
+  }
+}
