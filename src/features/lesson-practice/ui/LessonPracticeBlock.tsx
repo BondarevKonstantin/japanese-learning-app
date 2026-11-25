@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
+import { PracticeItemMedia } from '@/features/lesson-practice-media/ui/PracticeItemMedia';
 
 type Props = {
   items: LessonPracticeItem[];
@@ -116,15 +117,7 @@ export const LessonPracticeBlock = ({
             <p className="text-sm text-text-secondary">Задание {index + 1}</p>
             <h3 className="mt-2 text-lg font-semibold text-text-primary">{item.question}</h3>
 
-            {item.image_url ? (
-              <div className="mt-4">
-                <img
-                  src={item.image_url}
-                  alt={`Иллюстрация к заданию ${index + 1}`}
-                  className="max-h-[360px] w-full max-w-2xl rounded-2xl border border-border object-contain"
-                />
-              </div>
-            ) : null}
+            <PracticeItemMedia imageBlock={item.image_block} imageUrl={item.image_url} />
 
             {item.type === 'multiple_choice' && item.options?.length ? (
               <div className="mt-4 grid gap-3">

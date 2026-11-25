@@ -1,5 +1,6 @@
-import { supabase } from '@/shared/api/supabase/client';
+import { mapLessonPracticeItem } from '@/entities/lesson-practice/lib/mapLessonPracticeItem';
 import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
+import { supabase } from '@/shared/api/supabase/client';
 
 export const getLessonPracticeItems = async (lessonId: string): Promise<LessonPracticeItem[]> => {
   const { data, error } = await supabase
@@ -13,5 +14,5 @@ export const getLessonPracticeItems = async (lessonId: string): Promise<LessonPr
     throw new Error(error.message);
   }
 
-  return (data ?? []) as LessonPracticeItem[];
+  return (data ?? []).map((row) => mapLessonPracticeItem(row));
 };

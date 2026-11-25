@@ -1,8 +1,14 @@
-import { supabase } from '@/shared/api/supabase/client';
+import { mapLessonPracticeItem } from '@/entities/lesson-practice/lib/mapLessonPracticeItem';
 import type {
   LessonPracticeItem,
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
+import { supabase } from '@/shared/api/supabase/client';
+import {
+  getTheoryMediaBlockError,
+  normalizeTheoryMediaBlock,
+  type TheoryMediaBlock,
+} from '@/shared/lib/theoryMediaBlock';
 
 type UpdateLessonPracticeItemParams = {
   itemId: string;
@@ -12,6 +18,7 @@ type UpdateLessonPracticeItemParams = {
   correctAnswer: string | string[];
   explanation: string;
   imageUrl: string | null;
+  imageBlock: TheoryMediaBlock | null;
 };
 
 export const updateLessonPracticeItem = async ({
@@ -22,7 +29,16 @@ export const updateLessonPracticeItem = async ({
   correctAnswer,
   explanation,
   imageUrl,
+  imageBlock,
 }: UpdateLessonPracticeItemParams): Promise<LessonPracticeItem> => {
+  const imageBlockPayload = imageBlock ? normalizeTheoryMediaBlock(imageBlock) : null;
+  if (imageBlockPayload) {
+    const mediaError = getTheoryMediaBlockError(imageBlockPayload);
+    if (mediaError) {
+      throw new Error(mediaError);
+    }
+  }
+
   const { data, error } = await supabase
     .from('lesson_practice_items')
     .update({
@@ -32,6 +48,7 @@ export const updateLessonPracticeItem = async ({
       correct_answer: correctAnswer,
       explanation: explanation.trim() || null,
       image_url: imageUrl,
+      image_block: imageBlockPayload,
     })
     .eq('id', itemId)
     .select('*')
@@ -41,5 +58,5 @@ export const updateLessonPracticeItem = async ({
     throw new Error(error.message);
   }
 
-  return data as LessonPracticeItem;
+  return mapLessonPracticeItem(data);
 };

@@ -1,3 +1,5 @@
+import type { TheoryMediaBlock } from '@/shared/lib/theoryMediaBlock';
+
 export type LessonPracticeItemType = 'multiple_choice' | 'input' | 'textarea';
 
 export type LessonPracticeItem = {
@@ -9,6 +11,7 @@ export type LessonPracticeItem = {
   correct_answer: string | string[];
   explanation: string | null;
   image_url: string | null;
+  image_block: TheoryMediaBlock | null;
   order_index: number;
   created_at: string;
 };

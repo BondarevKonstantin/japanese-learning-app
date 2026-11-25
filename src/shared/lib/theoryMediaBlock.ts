@@ -134,6 +134,14 @@ export const parseTheoryMediaBlock = (source: string): TheoryMediaBlock | null =
   }
 };
 
+export const parseTheoryMediaBlockValue = (value: unknown): TheoryMediaBlock | null => {
+  if (typeof value === 'string') {
+    return parseTheoryMediaBlock(value);
+  }
+
+  return readTheoryMediaBlock(value);
+};
+
 export const serializeTheoryMediaBlock = (block: TheoryMediaBlock): string => {
   const payload = {
     align: block.align,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { AppLayout } from '@/app/layouts/AppLayout';
@@ -12,8 +12,15 @@ import type {
   LessonPracticeItem,
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
-import { uploadPracticeItemImage } from '@/entities/lesson-practice/api/uploadPracticeItemImage';
+import { practiceMediaDraftFromItem } from '@/features/lesson-practice-media/lib/practiceItemMedia';
+import { PracticeItemMedia } from '@/features/lesson-practice-media/ui/PracticeItemMedia';
+import { PracticeMediaBlockEditor } from '@/features/lesson-practice-media/ui/PracticeMediaBlockEditor';
 import { routes } from '@/shared/config/routes';
+import {
+  getTheoryMediaBlockError,
+  normalizeTheoryMediaBlock,
+  type TheoryMediaBlock,
+} from '@/shared/lib/theoryMediaBlock';
 
 const typeOptions: LessonPracticeItemType[] = ['multiple_choice', 'input', 'textarea'];
 
@@ -29,8 +36,6 @@ export const TeacherLessonPracticePage = () => {
     lessonId: string;
   }>();
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [items, setItems] = useState<LessonPracticeItem[]>([]);
 
@@ -39,7 +44,7 @@ export const TeacherLessonPracticePage = () => {
   const [optionsText, setOptionsText] = useState('');
   const [correctAnswer, setCorrectAnswer] = useState('');
   const [explanation, setExplanation] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageBlock, setImageBlock] = useState<TheoryMediaBlock | null>(null);
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
@@ -105,38 +110,6 @@ export const TeacherLessonPracticePage = () => {
     }
   };
 
-  const handleImageUpload = async (file: File | null) => {
-    if (!lessonIdParam || !file) {
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('Можно загружать только изображения');
-      return;
-    }
-
-    try {
-      setErrorMessage('');
-      setIsUploadingImage(true);
-
-      const nextImageUrl = await uploadPracticeItemImage({
-        file,
-        lessonId: lessonIdParam,
-      });
-
-      setImageUrl(nextImageUrl);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Не удалось загрузить изображение';
-      setErrorMessage(message);
-    } finally {
-      setIsUploadingImage(false);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -158,6 +131,15 @@ export const TeacherLessonPracticePage = () => {
       return;
     }
 
+    const savedImageBlock = imageBlock ? normalizeTheoryMediaBlock(imageBlock) : null;
+    if (savedImageBlock) {
+      const mediaError = getTheoryMediaBlockError(savedImageBlock);
+      if (mediaError) {
+        setErrorMessage(mediaError);
+        return;
+      }
+    }
+
     setErrorMessage('');
     setIsSubmitting(true);
 
@@ -170,7 +152,8 @@ export const TeacherLessonPracticePage = () => {
           options: normalizedOptions,
           correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
-          imageUrl,
+          imageUrl: null,
+          imageBlock: savedImageBlock,
         });
       } else {
         await createLessonPracticeItem({
@@ -180,7 +163,8 @@ export const TeacherLessonPracticePage = () => {
           options: normalizedOptions,
           correctAnswer: type === 'textarea' ? '' : correctAnswer.trim(),
           explanation,
-          imageUrl,
+          imageUrl: null,
+          imageBlock: savedImageBlock,
         });
       }
 
@@ -218,7 +202,7 @@ export const TeacherLessonPracticePage = () => {
       Array.isArray(item.correct_answer) ? item.correct_answer.join('; ') : item.correct_answer,
     );
     setExplanation(item.explanation ?? '');
-    setImageUrl(item.image_url ?? null);
+    setImageBlock(practiceMediaDraftFromItem(item));
   };
 
   const resetForm = () => {
@@ -228,7 +212,7 @@ export const TeacherLessonPracticePage = () => {
     setOptionsText('');
     setCorrectAnswer('');
     setExplanation('');
-    setImageUrl(null);
+    setImageBlock(null);
   };
 
   return (
@@ -250,7 +234,6 @@ export const TeacherLessonPracticePage = () => {
             >
               Проверка работ
             </Link>
-
           </div>
         </div>
 
@@ -290,59 +273,14 @@ export const TeacherLessonPracticePage = () => {
                 />
               </label>
 
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-text-primary">
-                    Изображение к вопросу
-                  </span>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        void handleImageUpload(file);
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingImage}
-                      className="rounded-2xl border border-border bg-background px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isUploadingImage ? 'Загрузка...' : 'Загрузить фото'}
-                    </button>
-
-                    {imageUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => setImageUrl(null)}
-                        className="rounded-2xl border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:bg-secondary"
-                      >
-                        Удалить
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <p className="text-sm text-text-secondary">
-                  Одна фотография на вопрос, необязательно.
-                </p>
-
-                {imageUrl ? (
-                  <div className="mt-2">
-                    <img
-                      src={imageUrl}
-                      alt="Превью изображения вопроса"
-                      className="max-h-[260px] w-full rounded-2xl border border-border object-contain"
-                    />
-                  </div>
-                ) : null}
-              </div>
+              <PracticeMediaBlockEditor
+                key={editingItemId ?? 'new'}
+                lessonId={lessonIdParam}
+                value={imageBlock}
+                onChange={setImageBlock}
+                onUploadingChange={setIsUploadingImage}
+                disabled={isSubmitting}
+              />
 
               {type === 'multiple_choice' ? (
                 <label className="flex flex-col gap-2">
@@ -457,15 +395,10 @@ export const TeacherLessonPracticePage = () => {
 
                           <h3 className="mt-1 font-semibold text-text-primary">{item.question}</h3>
 
-                          {item.image_url ? (
-                            <div className="mt-3">
-                              <img
-                                src={item.image_url}
-                                alt={`Иллюстрация к заданию ${index + 1}`}
-                                className="max-h-[220px] w-full max-w-xl rounded-2xl border border-border object-contain"
-                              />
-                            </div>
-                          ) : null}
+                          <PracticeItemMedia
+                            imageBlock={item.image_block}
+                            imageUrl={item.image_url}
+                          />
 
                           {item.type === 'multiple_choice' && item.options?.length ? (
                             <div className="mt-3 flex flex-wrap gap-2">

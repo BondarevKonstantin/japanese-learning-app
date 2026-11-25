@@ -1,8 +1,14 @@
-import { supabase } from '@/shared/api/supabase/client';
+import { mapLessonPracticeItem } from '@/entities/lesson-practice/lib/mapLessonPracticeItem';
 import type {
   LessonPracticeItem,
   LessonPracticeItemType,
 } from '@/entities/lesson-practice/model/types';
+import { supabase } from '@/shared/api/supabase/client';
+import {
+  getTheoryMediaBlockError,
+  normalizeTheoryMediaBlock,
+  type TheoryMediaBlock,
+} from '@/shared/lib/theoryMediaBlock';
 
 type CreateLessonPracticeItemParams = {
   lessonId: string;
@@ -12,6 +18,7 @@ type CreateLessonPracticeItemParams = {
   correctAnswer: string | string[];
   explanation: string;
   imageUrl: string | null;
+  imageBlock: TheoryMediaBlock | null;
 };
 
 export const createLessonPracticeItem = async ({
@@ -22,7 +29,16 @@ export const createLessonPracticeItem = async ({
   correctAnswer,
   explanation,
   imageUrl,
+  imageBlock,
 }: CreateLessonPracticeItemParams): Promise<LessonPracticeItem> => {
+  const imageBlockPayload = imageBlock ? normalizeTheoryMediaBlock(imageBlock) : null;
+  if (imageBlockPayload) {
+    const mediaError = getTheoryMediaBlockError(imageBlockPayload);
+    if (mediaError) {
+      throw new Error(mediaError);
+    }
+  }
+
   const { data: items, error: orderError } = await supabase
     .from('lesson_practice_items')
     .select('order_index')
@@ -46,6 +62,7 @@ export const createLessonPracticeItem = async ({
       correct_answer: correctAnswer,
       explanation: explanation.trim() || null,
       image_url: imageUrl,
+      image_block: imageBlockPayload,
       order_index: nextOrderIndex,
     })
     .select('*')
@@ -55,5 +72,5 @@ export const createLessonPracticeItem = async ({
     throw new Error(error.message);
   }
 
-  return data as LessonPracticeItem;
+  return mapLessonPracticeItem(data);
 };

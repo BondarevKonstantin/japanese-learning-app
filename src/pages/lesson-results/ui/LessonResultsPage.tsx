@@ -4,7 +4,10 @@ import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getPublishedLessonById } from '@/entities/lesson/api/getPublishedLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
+import { getLessonPracticeItems } from '@/entities/lesson-practice/api/getLessonPracticeItems';
+import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
 import type { LessonResultItem } from '@/entities/lesson-submission/model/types';
+import { PracticeItemMedia } from '@/features/lesson-practice-media/ui/PracticeItemMedia';
 import { getMyLessonResults } from '@/features/lesson-submission/api/getMyLessonResults';
 import { routes } from '@/shared/config/routes';
 
@@ -16,6 +19,14 @@ const formatCorrectAnswer = (value: string | string[]) => {
   return value;
 };
 
+const readErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 export const LessonResultsPage = () => {
   const { courseId: courseIdParam, lessonId: lessonIdParam } = useParams<{
     courseId: string;
@@ -24,8 +35,12 @@ export const LessonResultsPage = () => {
 
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [results, setResults] = useState<LessonResultItem[]>([]);
+  const [practiceItemsById, setPracticeItemsById] = useState<Map<string, LessonPracticeItem>>(
+    () => new Map(),
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [mediaNotice, setMediaNotice] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -36,21 +51,42 @@ export const LessonResultsPage = () => {
       }
 
       setErrorMessage('');
+      setMediaNotice('');
 
-      try {
-        const [nextLesson, nextResults] = await Promise.all([
-          getPublishedLessonById(lessonIdParam),
-          getMyLessonResults(lessonIdParam),
-        ]);
+      const [lessonResult, resultsResult, practiceItemsResult] = await Promise.allSettled([
+        getPublishedLessonById(lessonIdParam),
+        getMyLessonResults(lessonIdParam),
+        getLessonPracticeItems(lessonIdParam),
+      ]);
 
-        setLesson(nextLesson);
-        setResults(nextResults);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Не удалось загрузить результаты';
-        setErrorMessage(message);
-      } finally {
+      if (lessonResult.status === 'rejected') {
+        setErrorMessage(readErrorMessage(lessonResult.reason, 'Не удалось загрузить результаты'));
         setIsLoading(false);
+        return;
       }
+
+      if (resultsResult.status === 'rejected') {
+        setErrorMessage(readErrorMessage(resultsResult.reason, 'Не удалось загрузить результаты'));
+        setIsLoading(false);
+        return;
+      }
+
+      setLesson(lessonResult.value);
+      setResults(resultsResult.value);
+
+      if (practiceItemsResult.status === 'fulfilled') {
+        setPracticeItemsById(new Map(practiceItemsResult.value.map((item) => [item.id, item])));
+      } else {
+        setPracticeItemsById(new Map());
+        setMediaNotice(
+          readErrorMessage(
+            practiceItemsResult.reason,
+            'Не удалось загрузить изображения заданий. Показаны фотографии из результата, если они есть.',
+          ),
+        );
+      }
+
+      setIsLoading(false);
     };
 
     void loadData();
@@ -116,72 +152,74 @@ export const LessonResultsPage = () => {
             </p>
           ) : (
             <div className="grid gap-4">
-              {results.map((item, index) => (
-                <div
-                  key={item.answer_id}
-                  className="rounded-3xl border border-border bg-background p-5"
-                >
-                  <p className="text-sm text-text-secondary">Задание {index + 1}</p>
-                  <h3 className="mt-2 text-lg font-semibold text-text-primary">{item.question}</h3>
+              {mediaNotice ? <p className="text-sm text-text-secondary">{mediaNotice}</p> : null}
+              {results.map((item, index) => {
+                const practiceItem = practiceItemsById.get(item.practice_item_id);
 
-                  {item.image_url ? (
-                    <div className="mt-4">
-                      <img
-                        src={item.image_url}
-                        alt={`Иллюстрация к заданию ${index + 1}`}
-                        className="max-h-[360px] w-full max-w-2xl rounded-2xl border border-border object-contain"
-                      />
+                return (
+                  <div
+                    key={item.answer_id}
+                    className="rounded-3xl border border-border bg-background p-5"
+                  >
+                    <p className="text-sm text-text-secondary">Задание {index + 1}</p>
+                    <h3 className="mt-2 text-lg font-semibold text-text-primary">
+                      {item.question}
+                    </h3>
+
+                    <PracticeItemMedia
+                      imageBlock={practiceItem?.image_block ?? null}
+                      imageUrl={item.image_url ?? practiceItem?.image_url ?? null}
+                    />
+
+                    <div className="mt-4 grid gap-2 text-sm">
+                      <p className="text-text-secondary">
+                        Ваш ответ:{' '}
+                        <span className="text-text-primary">{item.answer_text || '—'}</span>
+                      </p>
+
+                      {item.practice_item_type !== 'textarea' ? (
+                        <>
+                          <p className="text-text-secondary">
+                            Правильный ответ:{' '}
+                            <span className="text-text-primary">
+                              {formatCorrectAnswer(item.correct_answer) || '—'}
+                            </span>
+                          </p>
+
+                          <p className="text-text-secondary">
+                            Автопроверка:{' '}
+                            <span className="text-text-primary">
+                              {item.is_auto_correct === true
+                                ? 'Верно'
+                                : item.is_auto_correct === false
+                                  ? 'Неверно'
+                                  : '—'}
+                            </span>
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-text-secondary">
+                          Формат проверки:{' '}
+                          <span className="text-text-primary">Проверено учителем вручную</span>
+                        </p>
+                      )}
+
+                      <p className="text-text-secondary">
+                        Комментарий учителя:{' '}
+                        <span className="text-text-primary">
+                          {item.teacher_comment || 'Комментарий не добавлен'}
+                        </span>
+                      </p>
+
+                      {item.explanation ? (
+                        <p className="text-text-secondary">
+                          Пояснение: <span className="text-text-primary">{item.explanation}</span>
+                        </p>
+                      ) : null}
                     </div>
-                  ) : null}
-
-                  <div className="mt-4 grid gap-2 text-sm">
-                    <p className="text-text-secondary">
-                      Ваш ответ:{' '}
-                      <span className="text-text-primary">{item.answer_text || '—'}</span>
-                    </p>
-
-                    {item.practice_item_type !== 'textarea' ? (
-                      <>
-                        <p className="text-text-secondary">
-                          Правильный ответ:{' '}
-                          <span className="text-text-primary">
-                            {formatCorrectAnswer(item.correct_answer) || '—'}
-                          </span>
-                        </p>
-
-                        <p className="text-text-secondary">
-                          Автопроверка:{' '}
-                          <span className="text-text-primary">
-                            {item.is_auto_correct === true
-                              ? 'Верно'
-                              : item.is_auto_correct === false
-                                ? 'Неверно'
-                                : '—'}
-                          </span>
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-text-secondary">
-                        Формат проверки:{' '}
-                        <span className="text-text-primary">Проверено учителем вручную</span>
-                      </p>
-                    )}
-
-                    <p className="text-text-secondary">
-                      Комментарий учителя:{' '}
-                      <span className="text-text-primary">
-                        {item.teacher_comment || 'Комментарий не добавлен'}
-                      </span>
-                    </p>
-
-                    {item.explanation ? (
-                      <p className="text-text-secondary">
-                        Пояснение: <span className="text-text-primary">{item.explanation}</span>
-                      </p>
-                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

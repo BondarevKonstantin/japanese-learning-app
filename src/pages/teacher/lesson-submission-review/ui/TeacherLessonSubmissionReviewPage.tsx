@@ -4,11 +4,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { getLessonById } from '@/entities/lesson/api/getLessonById';
 import type { Lesson } from '@/entities/lesson/model/types';
+import { getLessonPracticeItems } from '@/entities/lesson-practice/api/getLessonPracticeItems';
+import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
 import type {
   LessonSubmission,
   StudentSubmissionProfile,
   TeacherLessonSubmissionReviewItem,
 } from '@/entities/lesson-submission/model/types';
+import { PracticeItemMedia } from '@/features/lesson-practice-media/ui/PracticeItemMedia';
 import { getLessonSubmissionById } from '@/features/lesson-submission/api/getLessonSubmissionById';
 import { reviewLessonSubmission } from '@/features/lesson-submission/api/reviewLessonSubmission';
 import { routes } from '@/shared/config/routes';
@@ -23,6 +26,14 @@ const formatCorrectAnswer = (value: string | string[]) => {
 
 const getStudentDisplayName = (profile: StudentSubmissionProfile | null) =>
   profile?.display_name?.trim() || profile?.email || 'Имя ученика не указано';
+
+const readErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 export const TeacherLessonSubmissionReviewPage = () => {
   const navigate = useNavigate();
@@ -40,11 +51,15 @@ export const TeacherLessonSubmissionReviewPage = () => {
   const [submission, setSubmission] = useState<LessonSubmission | null>(null);
   const [studentProfile, setStudentProfile] = useState<StudentSubmissionProfile | null>(null);
   const [answers, setAnswers] = useState<TeacherLessonSubmissionReviewItem[]>([]);
+  const [practiceItemsById, setPracticeItemsById] = useState<Map<string, LessonPracticeItem>>(
+    () => new Map(),
+  );
   const [teacherComments, setTeacherComments] = useState<Record<string, string>>({});
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [mediaNotice, setMediaNotice] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,34 +70,60 @@ export const TeacherLessonSubmissionReviewPage = () => {
       }
 
       setErrorMessage('');
+      setMediaNotice('');
 
-      try {
-        const [nextLesson, submissionDetails] = await Promise.all([
-          getLessonById(lessonIdParam),
-          getLessonSubmissionById(submissionIdParam),
-        ]);
+      const [lessonResult, submissionResult, practiceItemsResult] = await Promise.allSettled([
+        getLessonById(lessonIdParam),
+        getLessonSubmissionById(submissionIdParam),
+        getLessonPracticeItems(lessonIdParam),
+      ]);
 
-        setLesson(nextLesson);
-        setSubmission(submissionDetails.submission);
-        setStudentProfile(submissionDetails.student_profile);
-        setAnswers(submissionDetails.answers);
-
-        const nextTeacherComments = submissionDetails.answers.reduce<Record<string, string>>(
-          (acc, item) => {
-            acc[item.answer_id] = item.teacher_comment ?? '';
-            return acc;
-          },
-          {},
+      if (lessonResult.status === 'rejected') {
+        setErrorMessage(
+          readErrorMessage(lessonResult.reason, 'Не удалось загрузить работу ученика'),
         );
-
-        setTeacherComments(nextTeacherComments);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Не удалось загрузить работу ученика';
-        setErrorMessage(message);
-      } finally {
         setIsLoading(false);
+        return;
       }
+
+      if (submissionResult.status === 'rejected') {
+        setErrorMessage(
+          readErrorMessage(submissionResult.reason, 'Не удалось загрузить работу ученика'),
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const submissionDetails = submissionResult.value;
+
+      setLesson(lessonResult.value);
+      setSubmission(submissionDetails.submission);
+      setStudentProfile(submissionDetails.student_profile);
+      setAnswers(submissionDetails.answers);
+
+      const nextTeacherComments = submissionDetails.answers.reduce<Record<string, string>>(
+        (acc, item) => {
+          acc[item.answer_id] = item.teacher_comment ?? '';
+          return acc;
+        },
+        {},
+      );
+
+      setTeacherComments(nextTeacherComments);
+
+      if (practiceItemsResult.status === 'fulfilled') {
+        setPracticeItemsById(new Map(practiceItemsResult.value.map((item) => [item.id, item])));
+      } else {
+        setPracticeItemsById(new Map());
+        setMediaNotice(
+          readErrorMessage(
+            practiceItemsResult.reason,
+            'Не удалось загрузить изображения заданий. Показаны фотографии из результата, если они есть.',
+          ),
+        );
+      }
+
+      setIsLoading(false);
     };
 
     void loadData();
@@ -209,83 +250,87 @@ export const TeacherLessonSubmissionReviewPage = () => {
                 </div>
               </div>
 
+              {mediaNotice ? (
+                <p className="mt-6 text-sm text-text-secondary">{mediaNotice}</p>
+              ) : null}
+
               <div className="mt-6 grid gap-4">
-                {answers.map((item, index) => (
-                  <div
-                    key={item.answer_id}
-                    className="rounded-3xl border border-border bg-background p-5"
-                  >
-                    <p className="text-sm text-text-secondary">Задание {index + 1}</p>
-                    <h3 className="mt-2 text-lg font-semibold text-text-primary">
-                      {item.question}
-                    </h3>
+                {answers.map((item, index) => {
+                  const practiceItem = practiceItemsById.get(item.practice_item_id);
 
-                    {item.image_url ? (
-                      <div className="mt-4">
-                        <img
-                          src={item.image_url}
-                          alt={`Иллюстрация к заданию ${index + 1}`}
-                          className="max-h-[360px] w-full max-w-2xl rounded-2xl border border-border object-contain"
-                        />
-                      </div>
-                    ) : null}
+                  return (
+                    <div
+                      key={item.answer_id}
+                      className="rounded-3xl border border-border bg-background p-5"
+                    >
+                      <p className="text-sm text-text-secondary">Задание {index + 1}</p>
+                      <h3 className="mt-2 text-lg font-semibold text-text-primary">
+                        {item.question}
+                      </h3>
 
-                    <div className="mt-4 grid gap-2 text-sm">
-                      <p className="text-text-secondary">
-                        Ответ ученика:{' '}
-                        <span className="text-text-primary">{item.answer_text || '—'}</span>
-                      </p>
-
-                      {item.practice_item_type !== 'textarea' ? (
-                        <>
-                          <p className="text-text-secondary">
-                            Правильный ответ:{' '}
-                            <span className="text-text-primary">
-                              {formatCorrectAnswer(item.correct_answer) || '—'}
-                            </span>
-                          </p>
-
-                          <p className="text-text-secondary">
-                            Автопроверка:{' '}
-                            <span className="text-text-primary">
-                              {item.is_auto_correct === true
-                                ? 'Верно'
-                                : item.is_auto_correct === false
-                                  ? 'Неверно'
-                                  : '—'}
-                            </span>
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-text-secondary">
-                          Формат ответа: <span className="text-text-primary">Свободный ответ</span>
-                        </p>
-                      )}
-
-                      {item.explanation ? (
-                        <p className="text-text-secondary">
-                          Пояснение: <span className="text-text-primary">{item.explanation}</span>
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <label className="mt-4 flex flex-col gap-2">
-                      <span className="text-sm font-medium text-text-primary">
-                        Комментарий учителя
-                      </span>
-                      <textarea
-                        value={teacherComments[item.answer_id] ?? ''}
-                        onChange={(event) =>
-                          handleCommentChange(item.answer_id, event.target.value)
-                        }
-                        rows={4}
-                        disabled={submission.status === 'reviewed'}
-                        className="rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
-                        placeholder="Напиши замечания, исправления или похвалу"
+                      <PracticeItemMedia
+                        imageBlock={practiceItem?.image_block ?? null}
+                        imageUrl={item.image_url ?? practiceItem?.image_url ?? null}
                       />
-                    </label>
-                  </div>
-                ))}
+
+                      <div className="mt-4 grid gap-2 text-sm">
+                        <p className="text-text-secondary">
+                          Ответ ученика:{' '}
+                          <span className="text-text-primary">{item.answer_text || '—'}</span>
+                        </p>
+
+                        {item.practice_item_type !== 'textarea' ? (
+                          <>
+                            <p className="text-text-secondary">
+                              Правильный ответ:{' '}
+                              <span className="text-text-primary">
+                                {formatCorrectAnswer(item.correct_answer) || '—'}
+                              </span>
+                            </p>
+
+                            <p className="text-text-secondary">
+                              Автопроверка:{' '}
+                              <span className="text-text-primary">
+                                {item.is_auto_correct === true
+                                  ? 'Верно'
+                                  : item.is_auto_correct === false
+                                    ? 'Неверно'
+                                    : '—'}
+                              </span>
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-text-secondary">
+                            Формат ответа:{' '}
+                            <span className="text-text-primary">Свободный ответ</span>
+                          </p>
+                        )}
+
+                        {item.explanation ? (
+                          <p className="text-text-secondary">
+                            Пояснение: <span className="text-text-primary">{item.explanation}</span>
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <label className="mt-4 flex flex-col gap-2">
+                        <span className="text-sm font-medium text-text-primary">
+                          Комментарий учителя
+                        </span>
+                        <textarea
+                          value={teacherComments[item.answer_id] ?? ''}
+                          onChange={(event) =>
+                            handleCommentChange(item.answer_id, event.target.value)
+                          }
+                          rows={4}
+                          disabled={submission.status === 'reviewed'}
+                          className="rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
+                          placeholder="Напиши замечания, исправления или похвалу"
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="mt-6 flex justify-end">
