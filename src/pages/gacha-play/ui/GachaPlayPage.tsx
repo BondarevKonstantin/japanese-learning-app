@@ -94,7 +94,7 @@ export const GachaPlayPage = () => {
       <GachaFireflies />
 
       <div className="pointer-events-none relative z-[2] flex min-h-0 flex-1 items-center justify-center px-4 pt-20 pb-4 [container-type:size]">
-        <div className="aspect-square w-[min(100cqw,100cqh)]">
+        <div className="aspect-square w-[min(100cqw,100cqh)] ml-12 mt-15">
           <DotLottieReact
             src={gachaMachineSrc}
             autoplay={false}
