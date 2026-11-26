@@ -5,8 +5,13 @@ type GachaPlayControlsProps = {
   isLoading: boolean;
   errorMessage: string;
   playerError: string;
-  isPlaying: boolean;
-  onSpin: () => void;
+  isSpinBusy: boolean;
+  canRealSpin: boolean;
+  onRealSpin: () => void;
+  realSpinError: string;
+  showTestSpin: boolean;
+  onTestSpin: () => void;
+  testSpinError: string;
 };
 
 export const GachaPlayControls = ({
@@ -16,12 +21,14 @@ export const GachaPlayControls = ({
   isLoading,
   errorMessage,
   playerError,
-  isPlaying,
-  onSpin,
+  isSpinBusy,
+  canRealSpin,
+  onRealSpin,
+  realSpinError,
+  showTestSpin,
+  onTestSpin,
+  testSpinError,
 }: GachaPlayControlsProps) => {
-  const canSpin =
-    !isLoading && errorMessage === '' && totalCards > 0 && availablePulls > 0 && !isPlaying;
-
   const hint =
     isLoading || errorMessage !== ''
       ? ''
@@ -57,12 +64,35 @@ export const GachaPlayControls = ({
 
       <button
         type="button"
-        onClick={onSpin}
-        disabled={!canSpin}
+        onClick={onRealSpin}
+        disabled={!canRealSpin}
+        aria-busy={isSpinBusy}
         className="mt-4 w-full rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         Крутить
       </button>
+
+      {realSpinError ? <p className="mt-3 text-sm text-accent">{realSpinError}</p> : null}
+
+      {import.meta.env.DEV &&
+      import.meta.env.VITE_ENABLE_GACHA_TEST_SPIN === 'true' &&
+      showTestSpin ? (
+        <button
+          type="button"
+          onClick={onTestSpin}
+          disabled={isSpinBusy}
+          aria-busy={isSpinBusy}
+          className="mt-3 w-full rounded-2xl border border-primary bg-white px-4 py-3 font-medium text-primary transition hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Тестовая крутка
+        </button>
+      ) : null}
+
+      {import.meta.env.DEV &&
+      import.meta.env.VITE_ENABLE_GACHA_TEST_SPIN === 'true' &&
+      testSpinError ? (
+        <p className="mt-3 text-sm text-accent">{testSpinError}</p>
+      ) : null}
 
       {playerError ? <p className="mt-3 text-sm text-accent">{playerError}</p> : null}
     </section>

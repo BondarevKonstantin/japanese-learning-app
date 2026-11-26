@@ -13,40 +13,91 @@
 }
 
 .gacha-reward-card {
+  perspective: 1000px;
+}
+
+.gacha-reward-card__lift {
+  display: block;
+  width: 100%;
+  border-radius: 1.15rem;
   transition:
     transform 250ms ease-out,
     filter 250ms ease-out,
     box-shadow 250ms ease-out;
 }
 
+.gacha-reward-card__flip {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  transform-style: preserve-3d;
+  transition: transform 650ms ease;
+}
+
+.gacha-reward-card__flip--revealed {
+  transform: rotateY(180deg);
+}
+
+.gacha-reward-card__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.15rem;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.gacha-reward-card__face--back {
+  overflow: hidden;
+}
+
+.gacha-reward-card__face--front {
+  transform: rotateY(180deg);
+  background: transparent;
+}
+
+.gacha-reward-card__title {
+  display: block;
+  margin-top: 0.5rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: #fff;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .gacha-reward-card:hover {
+  .gacha-reward-card:hover .gacha-reward-card__lift {
     transform: translateY(-6px) scale(1.02);
     filter: brightness(1.07);
   }
 
-  .gacha-reward-card--common:hover {
+  .gacha-reward-card--common:hover .gacha-reward-card__lift {
     box-shadow:
       0 0 16px rgba(196, 165, 116, 0.42),
       0 18px 32px rgba(42, 24, 8, 0.46);
   }
 
-  .gacha-reward-card--rare:hover {
+  .gacha-reward-card--rare:hover .gacha-reward-card__lift {
     box-shadow:
       0 0 18px rgba(47, 111, 237, 0.38),
       0 18px 32px rgba(12, 36, 96, 0.5);
   }
 
-  .gacha-reward-card--epic:hover {
+  .gacha-reward-card--epic:hover .gacha-reward-card__lift {
     box-shadow:
       0 0 36px rgba(168, 85, 247, 0.7),
       0 18px 32px rgba(48, 16, 92, 0.48);
   }
 
-  .gacha-reward-card--legendary:hover {
+  .gacha-reward-card--legendary:hover .gacha-reward-card__lift {
     box-shadow:
       0 0 40px rgba(242, 193, 77, 0.74),
       0 18px 32px rgba(92, 58, 8, 0.48);
+  }
+
+  .gacha-reward-card--revealed:hover .gacha-reward-card__lift {
+    box-shadow: 0 0 #0000;
   }
 }
 
@@ -55,11 +106,26 @@
     animation: none;
   }
 
-  .gacha-reward-card {
+  .gacha-reward-card__lift,
+  .gacha-reward-card__flip,
+  .gacha-reward-card__face--front {
     transition: none;
+    transform: none;
   }
 
-  .gacha-reward-card:hover {
+  .gacha-reward-card:hover .gacha-reward-card__lift {
     transform: none;
+  }
+
+  .gacha-reward-card__face--front {
+    visibility: hidden;
+  }
+
+  .gacha-reward-card__flip--revealed .gacha-reward-card__face--back {
+    visibility: hidden;
+  }
+
+  .gacha-reward-card__flip--revealed .gacha-reward-card__face--front {
+    visibility: visible;
   }
 }

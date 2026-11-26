@@ -15,6 +15,7 @@ export const useGachaMachinePlayback = ({
   const playerRef = useRef<DotLottie | null>(null);
   const isPlayingRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLottieReady, setIsLottieReady] = useState(false);
   const [playerError, setPlayerError] = useState('');
 
   const stopPlayback = useCallback(() => {
@@ -27,8 +28,13 @@ export const useGachaMachinePlayback = ({
     onComplete?.();
   }, [onComplete, stopPlayback]);
 
+  const handleLoad = useCallback(() => {
+    setIsLottieReady(true);
+  }, []);
+
   const handleLoadError = useCallback<EventListener<'loadError'>>(
     (event) => {
+      setIsLottieReady(false);
       stopPlayback();
       setPlayerError(event.error.message || 'Не удалось загрузить анимацию');
       onInterrupt?.();
@@ -51,6 +57,7 @@ export const useGachaMachinePlayback = ({
 
       if (previous && previous !== player) {
         previous.removeEventListener('complete', handleComplete);
+        previous.removeEventListener('load', handleLoad);
         previous.removeEventListener('loadError', handleLoadError);
         previous.removeEventListener('renderError', handleRenderError);
       }
@@ -59,15 +66,20 @@ export const useGachaMachinePlayback = ({
 
       if (player && player !== previous) {
         player.addEventListener('complete', handleComplete);
+        player.addEventListener('load', handleLoad);
         player.addEventListener('loadError', handleLoadError);
         player.addEventListener('renderError', handleRenderError);
       }
 
       if (!player) {
+        setIsLottieReady(false);
         stopPlayback();
+        return;
       }
+
+      setIsLottieReady(player.isLoaded);
     },
-    [handleComplete, handleLoadError, handleRenderError, stopPlayback],
+    [handleComplete, handleLoad, handleLoadError, handleRenderError, stopPlayback],
   );
 
   const playFromStart = useCallback(() => {
@@ -106,7 +118,12 @@ export const useGachaMachinePlayback = ({
     return true;
   }, [onInterrupt, stopPlayback]);
 
+  const clearPlayerError = useCallback(() => {
+    setPlayerError('');
+  }, []);
+
   const resetToStart = useCallback(() => {
+    stopPlayback();
     const player = playerRef.current;
 
     if (!player) {
@@ -126,13 +143,15 @@ export const useGachaMachinePlayback = ({
     } catch {
       // Closing the reward screen must still succeed if the player cannot reset.
     }
-  }, []);
+  }, [stopPlayback]);
 
   return {
+    isLottieReady,
     isPlaying,
     playerError,
     playFromStart,
     resetToStart,
+    clearPlayerError,
     dotLottieRefCallback,
   };
 };

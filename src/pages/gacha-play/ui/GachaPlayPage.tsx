@@ -1,12 +1,8 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import { useCallback, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  createTestGachaRewardCards,
-  type TestGachaRewardCard,
-} from '@/pages/gacha-play/model/createTestGachaRewardCards';
-import { useGachaMachinePlayback } from '@/pages/gacha-play/model/useGachaMachinePlayback';
 import { useGachaPlayOverview } from '@/pages/gacha-play/model/useGachaPlayOverview';
+import { useGachaSpin } from '@/pages/gacha-play/model/useGachaSpin';
+import { useGachaTestSpinAccess } from '@/pages/gacha-play/model/useGachaTestSpinAccess';
 import { GachaFireflies } from '@/pages/gacha-play/ui/GachaFireflies';
 import { GachaPlayControls } from '@/pages/gacha-play/ui/GachaPlayControls';
 import { GachaRewardOverlay } from '@/pages/gacha-play/ui/GachaRewardOverlay';
@@ -18,37 +14,42 @@ const streetBackgroundSrc = '/assets/gacha/scene/japan-street.png';
 
 export const GachaPlayPage = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { overview, isLoading, errorMessage } = useGachaPlayOverview(courseId);
-  const pendingRewardCardsRef = useRef<TestGachaRewardCard[] | null>(null);
-  const spinLockedRef = useRef(false);
-  const [rewardCards, setRewardCards] = useState<TestGachaRewardCard[] | null>(null);
-  const handlePlaybackComplete = useCallback(() => {
-    const cards = pendingRewardCardsRef.current;
-    pendingRewardCardsRef.current = null;
-
-    if (!cards || cards.length === 0) {
-      spinLockedRef.current = false;
-      return;
-    }
-
-    setRewardCards(cards);
-  }, []);
-  const handlePlaybackInterrupt = useCallback(() => {
-    pendingRewardCardsRef.current = null;
-    spinLockedRef.current = false;
-  }, []);
-  const { isPlaying, playerError, playFromStart, resetToStart, dotLottieRefCallback } =
-    useGachaMachinePlayback({
-      onComplete: handlePlaybackComplete,
-      onInterrupt: handlePlaybackInterrupt,
-    });
+  const { overview, isLoading, errorMessage, applySpinResult, reloadOverview } =
+    useGachaPlayOverview(courseId);
+  const isCourseCreator = useGachaTestSpinAccess(courseId);
+  const {
+    rewards,
+    imageError,
+    canRetryImages,
+    isRetryingImages,
+    realSpinError,
+    testSpinError,
+    playerError,
+    isBusy,
+    isLottieReady,
+    dotLottieRefCallback,
+    startTestSpin,
+    startRealSpin,
+    retryRewardImages,
+    closeRewards,
+  } = useGachaSpin(courseId, {
+    onSpinCommitted: applySpinResult,
+    onSpinOutcomeUnknown: reloadOverview,
+  });
 
   const totalCards = overview?.totalCards ?? 0;
   const unlockedCount = overview?.unlockedCount ?? 0;
   const availablePulls = overview?.availablePulls ?? 0;
   const remainingCards = Math.max(0, totalCards - unlockedCount);
-  const canSpin =
-    overview !== null && !isLoading && errorMessage === '' && totalCards > 0 && availablePulls > 0;
+  const showTestSpin = isCourseCreator && !isLoading && errorMessage === '' && totalCards > 0;
+  const canRealSpin =
+    overview !== null &&
+    !isLoading &&
+    errorMessage === '' &&
+    totalCards > 0 &&
+    availablePulls > 0 &&
+    isLottieReady &&
+    !isBusy;
 
   if (!courseId) {
     return (
@@ -57,31 +58,6 @@ export const GachaPlayPage = () => {
       </div>
     );
   }
-
-  const phase = rewardCards ? 'rewards' : isPlaying ? 'playing' : 'idle';
-
-  const handleSpin = () => {
-    if (!canSpin || phase !== 'idle' || spinLockedRef.current) {
-      return;
-    }
-
-    spinLockedRef.current = true;
-    const cards = createTestGachaRewardCards();
-    const started = playFromStart();
-
-    if (!started) {
-      spinLockedRef.current = false;
-      return;
-    }
-
-    pendingRewardCardsRef.current = cards;
-  };
-
-  const handleCloseRewards = () => {
-    resetToStart();
-    spinLockedRef.current = false;
-    setRewardCards(null);
-  };
 
   return (
     <main className="fixed inset-0 flex flex-col overflow-hidden bg-black">
@@ -118,13 +94,34 @@ export const GachaPlayPage = () => {
           isLoading={isLoading}
           errorMessage={errorMessage}
           playerError={playerError}
-          isPlaying={isPlaying || phase === 'rewards'}
-          onSpin={handleSpin}
+          isSpinBusy={isBusy}
+          canRealSpin={canRealSpin}
+          onRealSpin={() => {
+            void startRealSpin();
+          }}
+          realSpinError={realSpinError}
+          showTestSpin={showTestSpin}
+          onTestSpin={() => {
+            void startTestSpin();
+          }}
+          testSpinError={testSpinError}
         />
       </div>
 
-      {phase === 'rewards' && rewardCards ? (
-        <GachaRewardOverlay cards={rewardCards} onClose={handleCloseRewards} />
+      {rewards ? (
+        <GachaRewardOverlay
+          cards={rewards}
+          onClose={closeRewards}
+          imageError={imageError}
+          isRetryingImages={isRetryingImages}
+          onRetryImages={
+            canRetryImages
+              ? () => {
+                  void retryRewardImages();
+                }
+              : undefined
+          }
+        />
       ) : null}
     </main>
   );
