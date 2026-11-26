@@ -10,7 +10,16 @@ import { getLessonsByCourse } from '@/entities/lesson/api/getLessonsByCourse';
 import { getPublishedLessonsByCourse } from '@/entities/lesson/api/getPublishedLessonsByCourse';
 import type { Lesson } from '@/entities/lesson/model/types';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
+import { isCourseFullyCompleted } from '@/features/lesson/api/isCourseFullyCompleted';
+import { markCourseFinaleCompleted } from '@/pages/course/model/courseFinaleStorage';
+import {
+  isCourseIntroCompleted,
+  markCourseIntroCompleted,
+} from '@/pages/course/model/courseIntroStorage';
+import { CourseFinaleViewer } from '@/pages/course/ui/CourseFinaleViewer';
+import { CourseIntroViewer } from '@/pages/course/ui/CourseIntroViewer';
 import { supabase } from '@/shared/api/supabase/client';
+import { isCourseStoryEnabled } from '@/shared/config/courseStory';
 import { routes } from '@/shared/config/routes';
 import { BackButton } from '@/shared/ui/BackButton';
 
@@ -33,8 +42,20 @@ type CoursePageProps = {
   mode?: 'student' | 'teacher-preview';
 };
 
+type IntroUiState = {
+  visitKey: string;
+  dismissed: boolean;
+  replay: boolean;
+};
+
+type FinaleUiState = {
+  visitKey: string;
+  replay: boolean;
+  fullyCompleted: boolean;
+};
+
 export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { courseId: courseIdParam } = useParams<{ courseId: string }>();
   const isTeacherPreview = mode === 'teacher-preview';
 
@@ -44,6 +65,49 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const visitKey = `${user?.id ?? ''}:${courseIdParam ?? ''}`;
+  const [introUi, setIntroUi] = useState<IntroUiState>({
+    visitKey,
+    dismissed: false,
+    replay: false,
+  });
+
+  const [finaleUi, setFinaleUi] = useState<FinaleUiState>({
+    visitKey,
+    replay: false,
+    fullyCompleted: false,
+  });
+
+  if (introUi.visitKey !== visitKey) {
+    setIntroUi({ visitKey, dismissed: false, replay: false });
+  }
+
+  if (finaleUi.visitKey !== visitKey) {
+    setFinaleUi({ visitKey, replay: false, fullyCompleted: false });
+  }
+
+  const introDismissed = introUi.visitKey === visitKey && introUi.dismissed;
+  const replayOpen = introUi.visitKey === visitKey && introUi.replay;
+  const finaleReplayOpen = finaleUi.visitKey === visitKey && finaleUi.replay;
+  const finaleFullyCompleted = finaleUi.visitKey === visitKey && finaleUi.fullyCompleted;
+  const storyCourse =
+    !isLoading &&
+    course &&
+    course.id === courseIdParam &&
+    user?.id &&
+    isCourseStoryEnabled(course.id)
+      ? { course, userId: user.id }
+      : null;
+  const introOpen =
+    storyCourse !== null &&
+    (replayOpen ||
+      (profile?.role === 'student' &&
+        !isTeacherPreview &&
+        !introDismissed &&
+        !isCourseIntroCompleted(storyCourse.userId, storyCourse.course.id)));
+  const canReplayFinale =
+    storyCourse !== null &&
+    (isTeacherPreview || (profile?.role === 'student' && finaleFullyCompleted));
 
   useEffect(() => {
     const loadCoursePage = async () => {
@@ -57,9 +121,7 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
 
       try {
         const [nextCourse, nextLessons] = await Promise.all([
-          isTeacherPreview
-            ? getCourseById(courseIdParam)
-            : getPublishedCourseById(courseIdParam),
+          isTeacherPreview ? getCourseById(courseIdParam) : getPublishedCourseById(courseIdParam),
           isTeacherPreview
             ? getLessonsByCourse(courseIdParam)
             : getPublishedLessonsByCourse(courseIdParam),
@@ -104,6 +166,99 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
     void loadCoursePage();
   }, [courseIdParam, isTeacherPreview, user?.id]);
 
+  useEffect(() => {
+    if (
+      !courseIdParam ||
+      !user?.id ||
+      isTeacherPreview ||
+      profile?.role !== 'student' ||
+      !isCourseStoryEnabled(courseIdParam)
+    ) {
+      return;
+    }
+
+    let ignore = false;
+    const courseId = courseIdParam;
+    const userId = user.id;
+    const requestKey = `${userId}:${courseId}`;
+
+    void isCourseFullyCompleted(courseId, userId)
+      .then((completed) => {
+        if (ignore) {
+          return;
+        }
+
+        setFinaleUi((current) => {
+          if (current.visitKey !== requestKey) {
+            return current;
+          }
+
+          return { ...current, fullyCompleted: completed };
+        });
+      })
+      .catch(() => {
+        if (ignore) {
+          return;
+        }
+
+        setFinaleUi((current) => {
+          if (current.visitKey !== requestKey) {
+            return current;
+          }
+
+          return { ...current, fullyCompleted: false };
+        });
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [courseIdParam, isTeacherPreview, profile?.role, user?.id]);
+
+  const closeIntro = () => {
+    setIntroUi({ visitKey, dismissed: true, replay: false });
+  };
+
+  const completeIntro = () => {
+    if (!isTeacherPreview && storyCourse) {
+      markCourseIntroCompleted(storyCourse.userId, storyCourse.course.id);
+    }
+
+    setIntroUi({ visitKey, dismissed: true, replay: false });
+  };
+
+  const replayIntro = () => {
+    if (!storyCourse) {
+      return;
+    }
+
+    setIntroUi({ visitKey, dismissed: introDismissed, replay: true });
+  };
+
+  const replayFinale = () => {
+    if (!canReplayFinale) {
+      return;
+    }
+
+    setFinaleUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: true } : current,
+    );
+  };
+
+  const closeFinale = () => {
+    setFinaleUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
+  };
+
+  const completeFinale = () => {
+    if (!isTeacherPreview && profile?.role === 'student' && storyCourse) {
+      markCourseFinaleCompleted(storyCourse.userId, storyCourse.course.id);
+    }
+
+    closeFinale();
+  };
+
   if (!courseIdParam) {
     return (
       <AppLayout>
@@ -118,9 +273,7 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
         {isTeacherPreview ? (
           <div className="mb-6 rounded-3xl border border-primary bg-primary-light px-5 py-4 text-text-primary">
             <p className="font-semibold">Режим предпросмотра</p>
-            <p className="mt-1 text-sm">
-              Так курс будет выглядеть для ученика после публикации.
-            </p>
+            <p className="mt-1 text-sm">Так курс будет выглядеть для ученика после публикации.</p>
           </div>
         ) : null}
 
@@ -133,6 +286,26 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             <p className="mt-2 text-text-secondary">
               {course?.description?.trim() || 'Изучай уроки и открывай новые карточки'}
             </p>
+            {storyCourse ? (
+              <div className="mt-3 flex flex-col items-start gap-2">
+                <button
+                  type="button"
+                  onClick={replayIntro}
+                  className="text-sm font-medium text-accent transition hover:opacity-80"
+                >
+                  Посмотреть вступление
+                </button>
+                {canReplayFinale ? (
+                  <button
+                    type="button"
+                    onClick={replayFinale}
+                    className="text-sm font-medium text-accent transition hover:opacity-80"
+                  >
+                    Посмотреть поздравление
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -265,6 +438,16 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
           </div>
         </div>
       </div>
+      {introOpen ? (
+        <CourseIntroViewer key={visitKey} onClose={closeIntro} onComplete={completeIntro} />
+      ) : null}
+      {storyCourse && finaleReplayOpen ? (
+        <CourseFinaleViewer
+          key={`finale-${visitKey}`}
+          onClose={closeFinale}
+          onComplete={completeFinale}
+        />
+      ) : null}
     </AppLayout>
   );
 };

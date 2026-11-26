@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AppLayout } from '@/app/layouts/AppLayout';
 import { useAuth } from '@/app/providers/auth/useAuth';
@@ -8,10 +8,17 @@ import { getPublishedLessonById } from '@/entities/lesson/api/getPublishedLesson
 import type { Lesson } from '@/entities/lesson/model/types';
 import { getLessonPracticeItems } from '@/entities/lesson-practice/api/getLessonPracticeItems';
 import type { LessonPracticeItem } from '@/entities/lesson-practice/model/types';
-import { completeLesson } from '@/features/lesson/api/completeLesson';
+import { completeLesson, type CompleteLessonResult } from '@/features/lesson/api/completeLesson';
+import { isCourseFullyCompleted } from '@/features/lesson/api/isCourseFullyCompleted';
 import { getMyLessonSubmission } from '@/features/lesson-submission/api/getMyLessonSubmission';
 import { submitLessonAnswers } from '@/features/lesson-submission/api/submitLessonAnswers';
 import { LessonPracticeBlock } from '@/features/lesson-practice/ui/LessonPracticeBlock';
+import {
+  isCourseFinaleCompleted,
+  markCourseFinaleCompleted,
+} from '@/pages/course/model/courseFinaleStorage';
+import { CourseFinaleViewer } from '@/pages/course/ui/CourseFinaleViewer';
+import { isCourseStoryEnabled } from '@/shared/config/courseStory';
 import { routes } from '@/shared/config/routes';
 import { MarkdownRenderer } from '@/shared/ui/MarkdownRenderer';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
@@ -20,8 +27,45 @@ type LessonPageProps = {
   mode?: 'student' | 'teacher-preview';
 };
 
+type FinaleUiState = {
+  visitKey: string;
+  open: boolean;
+  courseId: string | null;
+  autoOpened: boolean;
+};
+
+const sameCourseId = (left: string, right: string): boolean => {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+};
+
+const readAutoFinaleCourseId = (
+  result: CompleteLessonResult,
+  courseId: string | undefined,
+  userId: string | undefined,
+  role: string | undefined,
+  isTeacherPreview: boolean,
+): string | null => {
+  if (isTeacherPreview || role !== 'student' || !userId || !courseId) {
+    return null;
+  }
+
+  if (result.completed_now !== true || typeof result.course_id !== 'string') {
+    return null;
+  }
+
+  if (!sameCourseId(courseId, result.course_id) || !isCourseStoryEnabled(result.course_id)) {
+    return null;
+  }
+
+  if (isCourseFinaleCompleted(userId, result.course_id)) {
+    return null;
+  }
+
+  return result.course_id;
+};
+
 export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { courseId: courseIdParam, lessonId: lessonIdParam } = useParams<{
     courseId: string;
     lessonId: string;
@@ -38,6 +82,18 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const finaleVisitKey = `${user?.id ?? ''}:${courseIdParam ?? ''}:${lessonIdParam ?? ''}`;
+  const finaleEpochRef = useRef(0);
+  const [finaleUi, setFinaleUi] = useState<FinaleUiState>({
+    visitKey: finaleVisitKey,
+    open: false,
+    courseId: null,
+    autoOpened: false,
+  });
+
+  if (finaleUi.visitKey !== finaleVisitKey) {
+    setFinaleUi({ visitKey: finaleVisitKey, open: false, courseId: null, autoOpened: false });
+  }
 
   useEffect(() => {
     const loadLessonPage = async () => {
@@ -112,6 +168,12 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
     void loadLessonPage();
   }, [courseIdParam, isTeacherPreview, lessonIdParam, user?.id]);
 
+  useEffect(() => {
+    return () => {
+      finaleEpochRef.current += 1;
+    };
+  }, [finaleVisitKey]);
+
   const backToCourseRoute = useMemo(() => {
     if (!courseIdParam) {
       return routes.courses;
@@ -167,6 +229,9 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
     setCompletionMessage('');
     setIsCompleting(true);
 
+    const epoch = finaleEpochRef.current;
+    const visitKeyAtRequest = finaleVisitKey;
+
     try {
       let nextSubmission: LessonSubmission | null = submission;
 
@@ -197,6 +262,39 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
         setCompletionMessage(`Урок завершён. Начислено ${result.reward_amount} круток.`);
       } else {
         setCompletionMessage('Этот урок уже был завершён ранее.');
+      }
+
+      const finaleCourseId = readAutoFinaleCourseId(
+        result,
+        courseIdParam,
+        user?.id,
+        profile?.role,
+        isTeacherPreview,
+      );
+
+      if (finaleCourseId && user?.id && epoch === finaleEpochRef.current) {
+        try {
+          const fullyCompleted = await isCourseFullyCompleted(finaleCourseId, user.id);
+
+          if (!fullyCompleted || epoch !== finaleEpochRef.current) {
+            return;
+          }
+
+          setFinaleUi((current) => {
+            if (current.visitKey !== visitKeyAtRequest || current.open || current.autoOpened) {
+              return current;
+            }
+
+            return {
+              visitKey: visitKeyAtRequest,
+              open: true,
+              courseId: finaleCourseId,
+              autoOpened: true,
+            };
+          });
+        } catch {
+          // completeLesson already succeeded. Keep the reward message and do not retry it.
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось завершить урок';
@@ -352,9 +450,7 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
 
               {isTeacherPreview ? (
                 <div className="mt-8 rounded-3xl border border-border bg-background p-5">
-                  <h3 className="text-lg font-semibold text-text-primary">
-                    Предпросмотр практики
-                  </h3>
+                  <h3 className="text-lg font-semibold text-text-primary">Предпросмотр практики</h3>
                   <p className="mt-1 text-sm text-text-secondary">
                     Введённые ответы хранятся только в этой вкладке и не отправляются на сервер.
                   </p>
@@ -400,6 +496,21 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
           </div>
         )}
       </div>
+      {finaleUi.visitKey === finaleVisitKey && finaleUi.open && finaleUi.courseId ? (
+        <CourseFinaleViewer
+          key={finaleUi.courseId}
+          onClose={() => {
+            setFinaleUi((current) => ({ ...current, open: false }));
+          }}
+          onComplete={() => {
+            if (!isTeacherPreview && profile?.role === 'student' && user?.id && finaleUi.courseId) {
+              markCourseFinaleCompleted(user.id, finaleUi.courseId);
+            }
+
+            setFinaleUi((current) => ({ ...current, open: false }));
+          }}
+        />
+      ) : null}
     </AppLayout>
   );
 };
