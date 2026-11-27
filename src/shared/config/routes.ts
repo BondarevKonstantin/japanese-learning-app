@@ -15,6 +15,7 @@ export const routes = {
   teacherLessonPractice: '/teacher/courses/:courseId/lessons/:lessonId/practice',
 
   teacherGachaCards: '/teacher/courses/:courseId/gacha/cards',
+  teacherCourseGifts: '/teacher/courses/:courseId/gifts',
 
   courses: '/courses',
   course: '/courses/:courseId',

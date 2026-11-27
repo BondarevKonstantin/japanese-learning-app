@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { AppLayout } from '@/app/layouts/AppLayout';
@@ -6,10 +6,14 @@ import { useAuth } from '@/app/providers/auth/useAuth';
 import { getCourseById } from '@/entities/course/api/getCourseById';
 import { getPublishedCourseById } from '@/entities/course/api/getPublishedCourseById';
 import type { Course } from '@/entities/course/model/types';
+import type { CourseGiftState } from '@/entities/course-gift/model/types';
 import { getLessonsByCourse } from '@/entities/lesson/api/getLessonsByCourse';
 import { getPublishedLessonsByCourse } from '@/entities/lesson/api/getPublishedLessonsByCourse';
 import type { Lesson } from '@/entities/lesson/model/types';
 import type { LessonSubmission } from '@/entities/lesson-submission/model/types';
+import { useCourseGiftSummary } from '@/features/course-gift/model/useCourseGiftSummary';
+import { CourseGiftDialog } from '@/features/course-gift/ui/CourseGiftDialog';
+import { CourseGiftPanel } from '@/features/course-gift/ui/CourseGiftPanel';
 import { isCourseFullyCompleted } from '@/features/lesson/api/isCourseFullyCompleted';
 import { markCourseFinaleCompleted } from '@/pages/course/model/courseFinaleStorage';
 import {
@@ -54,8 +58,13 @@ type FinaleUiState = {
   fullyCompleted: boolean;
 };
 
+type GiftUiState = {
+  visitKey: string;
+  open: boolean;
+};
+
 export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading: isAuthLoading } = useAuth();
   const { courseId: courseIdParam } = useParams<{ courseId: string }>();
   const isTeacherPreview = mode === 'teacher-preview';
 
@@ -77,6 +86,8 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
     replay: false,
     fullyCompleted: false,
   });
+  const [giftUi, setGiftUi] = useState<GiftUiState>({ visitKey, open: false });
+  const giftSavedRef = useRef(false);
 
   if (introUi.visitKey !== visitKey) {
     setIntroUi({ visitKey, dismissed: false, replay: false });
@@ -86,10 +97,15 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
     setFinaleUi({ visitKey, replay: false, fullyCompleted: false });
   }
 
+  if (giftUi.visitKey !== visitKey) {
+    setGiftUi({ visitKey, open: false });
+  }
+
   const introDismissed = introUi.visitKey === visitKey && introUi.dismissed;
   const replayOpen = introUi.visitKey === visitKey && introUi.replay;
   const finaleReplayOpen = finaleUi.visitKey === visitKey && finaleUi.replay;
   const finaleFullyCompleted = finaleUi.visitKey === visitKey && finaleUi.fullyCompleted;
+  const giftOpen = giftUi.visitKey === visitKey && giftUi.open;
   const storyCourse =
     !isLoading &&
     course &&
@@ -215,6 +231,37 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
     };
   }, [courseIdParam, isTeacherPreview, profile?.role, user?.id]);
 
+  const giftSummaryEnabled =
+    !isTeacherPreview &&
+    !isAuthLoading &&
+    !isLoading &&
+    !errorMessage &&
+    course !== null &&
+    course.id === courseIdParam &&
+    profile?.role === 'student' &&
+    Boolean(user?.id);
+
+  const giftSummary = useCourseGiftSummary({
+    courseId: giftSummaryEnabled ? (courseIdParam ?? null) : null,
+    userId: giftSummaryEnabled ? (user?.id ?? null) : null,
+    enabled: giftSummaryEnabled,
+  });
+
+  const closeGift = () => {
+    const shouldRefresh = !isTeacherPreview && !giftSavedRef.current;
+    giftSavedRef.current = false;
+    setGiftUi({ visitKey, open: false });
+
+    if (shouldRefresh) {
+      giftSummary.reload();
+    }
+  };
+
+  const handleGiftSaved = (next: CourseGiftState) => {
+    giftSavedRef.current = true;
+    giftSummary.applySaved(next);
+  };
+
   const closeIntro = () => {
     setIntroUi({ visitKey, dismissed: true, replay: false });
   };
@@ -232,6 +279,13 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
       return;
     }
 
+    if (giftOpen) {
+      closeGift();
+    }
+
+    setFinaleUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
     setIntroUi({ visitKey, dismissed: introDismissed, replay: true });
   };
 
@@ -240,6 +294,13 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
       return;
     }
 
+    if (giftOpen) {
+      closeGift();
+    }
+
+    setIntroUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
     setFinaleUi((current) =>
       current.visitKey === visitKey ? { ...current, replay: true } : current,
     );
@@ -256,7 +317,22 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
       markCourseFinaleCompleted(storyCourse.userId, storyCourse.course.id);
     }
 
-    closeFinale();
+    giftSavedRef.current = false;
+    setFinaleUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
+    setGiftUi({ visitKey, open: true });
+  };
+
+  const openGift = () => {
+    giftSavedRef.current = false;
+    setIntroUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
+    setFinaleUi((current) =>
+      current.visitKey === visitKey ? { ...current, replay: false } : current,
+    );
+    setGiftUi({ visitKey, open: true });
   };
 
   if (!courseIdParam) {
@@ -406,13 +482,23 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             )}
           </div>
 
-          <div className="flex min-h-0 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
             <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-text-primary">О курсе</h2>
               <p className="mt-4 text-sm leading-6 text-text-secondary">
                 {course?.description?.trim() || 'Описание курса пока не добавлено'}
               </p>
             </div>
+
+            {giftSummaryEnabled ? (
+              <CourseGiftPanel
+                status={giftSummary.status}
+                errorMessage={giftSummary.errorMessage}
+                state={giftSummary.state}
+                onRetry={giftSummary.reload}
+                onOpen={openGift}
+              />
+            ) : null}
 
             {!isTeacherPreview ? (
               <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
@@ -440,12 +526,19 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
       </div>
       {introOpen ? (
         <CourseIntroViewer key={visitKey} onClose={closeIntro} onComplete={completeIntro} />
-      ) : null}
-      {storyCourse && finaleReplayOpen ? (
+      ) : finaleReplayOpen && storyCourse ? (
         <CourseFinaleViewer
           key={`finale-${visitKey}`}
           onClose={closeFinale}
           onComplete={completeFinale}
+        />
+      ) : giftOpen && course && course.id === courseIdParam ? (
+        <CourseGiftDialog
+          key={`gift-${visitKey}`}
+          courseId={course.id}
+          mode={isTeacherPreview ? 'teacher-preview' : 'student'}
+          onClose={closeGift}
+          onSaved={handleGiftSaved}
         />
       ) : null}
     </AppLayout>

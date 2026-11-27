@@ -8,6 +8,7 @@ import { courseStatusClassMap, courseStatusLabelMap } from '@/entities/course/mo
 import type { Course, CourseStatus } from '@/entities/course/model/types';
 import { getFinalizedGachaCourseIds } from '@/features/gacha/api/getFinalizedGachaCourseIds';
 import { routes } from '@/shared/config/routes';
+import { isCourseStoryEnabled } from '@/shared/config/courseStory';
 import { BackButton } from '@/shared/ui/BackButton';
 
 const buildTeacherCourseLessonsRoute = (courseId: string) =>
@@ -15,6 +16,9 @@ const buildTeacherCourseLessonsRoute = (courseId: string) =>
 
 const buildTeacherGachaCardsRoute = (courseId: string) =>
   routes.teacherGachaCards.replace(':courseId', courseId);
+
+const buildTeacherCourseGiftsRoute = (courseId: string) =>
+  routes.teacherCourseGifts.replace(':courseId', courseId);
 
 const buildTeacherCoursePreviewRoute = (courseId: string) =>
   routes.teacherCoursePreview.replace(':courseId', courseId);
@@ -231,6 +235,15 @@ export const TeacherCoursesPage = () => {
                         >
                           Гача-карты
                         </Link>
+
+                        {isCourseStoryEnabled(course.id) ? (
+                          <Link
+                            to={buildTeacherCourseGiftsRoute(course.id)}
+                            className="rounded-2xl border border-border bg-surface px-4 py-3 text-center font-medium text-text-primary transition hover:bg-background"
+                          >
+                            Подарки ученикам
+                          </Link>
+                        ) : null}
                       </div>
 
                       <p className="mt-4 text-xs text-text-secondary">

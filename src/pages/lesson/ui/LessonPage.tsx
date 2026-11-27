@@ -13,6 +13,7 @@ import { isCourseFullyCompleted } from '@/features/lesson/api/isCourseFullyCompl
 import { getMyLessonSubmission } from '@/features/lesson-submission/api/getMyLessonSubmission';
 import { submitLessonAnswers } from '@/features/lesson-submission/api/submitLessonAnswers';
 import { LessonPracticeBlock } from '@/features/lesson-practice/ui/LessonPracticeBlock';
+import { CourseGiftDialog } from '@/features/course-gift/ui/CourseGiftDialog';
 import {
   isCourseFinaleCompleted,
   markCourseFinaleCompleted,
@@ -32,6 +33,7 @@ type FinaleUiState = {
   open: boolean;
   courseId: string | null;
   autoOpened: boolean;
+  giftCourseId: string | null;
 };
 
 const sameCourseId = (left: string, right: string): boolean => {
@@ -89,10 +91,17 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
     open: false,
     courseId: null,
     autoOpened: false,
+    giftCourseId: null,
   });
 
   if (finaleUi.visitKey !== finaleVisitKey) {
-    setFinaleUi({ visitKey: finaleVisitKey, open: false, courseId: null, autoOpened: false });
+    setFinaleUi({
+      visitKey: finaleVisitKey,
+      open: false,
+      courseId: null,
+      autoOpened: false,
+      giftCourseId: null,
+    });
   }
 
   useEffect(() => {
@@ -290,6 +299,7 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
               open: true,
               courseId: finaleCourseId,
               autoOpened: true,
+              giftCourseId: null,
             };
           });
         } catch {
@@ -507,8 +517,22 @@ export const LessonPage = ({ mode = 'student' }: LessonPageProps) => {
               markCourseFinaleCompleted(user.id, finaleUi.courseId);
             }
 
-            setFinaleUi((current) => ({ ...current, open: false }));
+            setFinaleUi((current) => ({
+              ...current,
+              open: false,
+              giftCourseId: current.courseId,
+            }));
           }}
+        />
+      ) : finaleUi.visitKey === finaleVisitKey && !finaleUi.open && finaleUi.giftCourseId ? (
+        <CourseGiftDialog
+          key={finaleUi.giftCourseId}
+          courseId={finaleUi.giftCourseId}
+          mode={isTeacherPreview ? 'teacher-preview' : 'student'}
+          onClose={() => {
+            setFinaleUi((current) => ({ ...current, giftCourseId: null }));
+          }}
+          onSaved={() => undefined}
         />
       ) : null}
     </AppLayout>

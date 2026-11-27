@@ -12,11 +12,16 @@ type CourseFinaleViewerProps = {
 const controlClassName =
   'rounded-2xl border border-border bg-background px-3 py-2 text-sm font-medium text-text-primary transition hover:bg-surface disabled:cursor-default disabled:opacity-40';
 
+const finaleGiftButtonStyle = {
+  left: 'calc(632 / 1536 * 100%)',
+  top: 'calc(693 / 1024 * 100%)',
+  width: 'calc(545 / 1536 * 100%)',
+  height: 'calc(107 / 1024 * 100%)',
+} as const;
+
 export const CourseFinaleViewer = ({ onClose, onComplete }: CourseFinaleViewerProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const [zoomed, setZoomed] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [imageFailed, setImageFailed] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -30,7 +35,6 @@ export const CourseFinaleViewer = ({ onClose, onComplete }: CourseFinaleViewerPr
       dialog.showModal();
     }
 
-    closeButtonRef.current?.focus();
     const unlock = lockBackgroundScroll(dialog);
 
     return () => {
@@ -41,18 +45,22 @@ export const CourseFinaleViewer = ({ onClose, onComplete }: CourseFinaleViewerPr
     };
   }, []);
 
+  useEffect(() => {
+    const image = imageRef.current;
+
+    if (image?.complete && image.naturalWidth > 0) {
+      setImageLoaded(true);
+      setImageFailed(false);
+    }
+  }, []);
+
   const requestClose = () => {
     onClose();
   };
 
-  const resetFrameScroll = () => {
-    const frame = frameRef.current;
-    if (!frame) {
-      return;
-    }
-
-    frame.scrollTop = 0;
-    frame.scrollLeft = 0;
+  const markImageLoaded = () => {
+    setImageLoaded(true);
+    setImageFailed(false);
   };
 
   const finishFinale = () => {
@@ -68,83 +76,57 @@ export const CourseFinaleViewer = ({ onClose, onComplete }: CourseFinaleViewerPr
     <dialog
       ref={dialogRef}
       aria-labelledby="course-finale-title"
-      className="fixed inset-0 m-0 h-dvh max-h-dvh w-full max-w-full overflow-hidden border-0 bg-black p-0 text-text-primary backdrop:bg-black/80"
+      className="fixed inset-0 m-0 h-dvh max-h-dvh w-full max-w-full overflow-hidden border-0 bg-[#fff6f8] p-0 text-text-primary backdrop:bg-[#fff6f8]"
       onCancel={(event) => {
         event.preventDefault();
         requestClose();
       }}
     >
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-surface px-3 py-2 sm:px-4">
-          <p id="course-finale-title" className="text-sm text-text-secondary">
-            Поздравление с завершением курса
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className={controlClassName}
-              onClick={() => {
-                setZoomed((current) => !current);
-                resetFrameScroll();
-              }}
-              disabled={imageFailed}
-            >
-              {zoomed ? 'Обычный размер' : 'Увеличить'}
-            </button>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              className={controlClassName}
-              onClick={requestClose}
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
+        <h2 id="course-finale-title" className="sr-only">
+          Поздравление с завершением курса
+        </h2>
 
-        <div
-          ref={frameRef}
-          className={`min-h-0 w-full flex-1 overscroll-contain bg-black ${
-            zoomed ? 'overflow-auto' : 'overflow-hidden'
-          }`}
-        >
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden overscroll-contain bg-[#fff6f8]">
           {imageFailed ? (
             <div className="flex h-full items-center justify-center p-4">
-              <p className="max-w-md rounded-2xl bg-surface px-4 py-3 text-center text-sm text-text-primary">
-                Не удалось показать поздравление. Окно можно закрыть и продолжить курс.
-              </p>
+              <div className="flex max-w-md flex-wrap items-center justify-center gap-3">
+                <p className="rounded-2xl bg-surface px-4 py-3 text-center text-sm text-text-primary">
+                  Не удалось показать поздравление. Окно можно закрыть и продолжить курс.
+                </p>
+                <button type="button" className={controlClassName} onClick={requestClose}>
+                  Закрыть
+                </button>
+              </div>
             </div>
-          ) : zoomed ? (
-            <img
-              src={COURSE_FINALE_IMAGE.src}
-              alt={COURSE_FINALE_IMAGE.alt}
-              draggable={false}
-              className="mx-auto h-auto w-[220%] max-w-none object-contain sm:w-[160%]"
-              onLoad={() => {
-                setImageLoaded(true);
-                setImageFailed(false);
-              }}
-              onError={() => {
-                setImageFailed(true);
-                setImageLoaded(false);
-              }}
-            />
           ) : (
-            <div className="flex h-full w-full items-center justify-center p-2 sm:p-4">
-              <img
-                src={COURSE_FINALE_IMAGE.src}
-                alt={COURSE_FINALE_IMAGE.alt}
-                draggable={false}
-                className="h-auto max-h-full min-h-0 w-auto min-w-0 max-w-full object-contain"
-                onLoad={() => {
-                  setImageLoaded(true);
-                  setImageFailed(false);
-                }}
-                onError={() => {
-                  setImageFailed(true);
-                  setImageLoaded(false);
-                }}
-              />
+            <div className="absolute inset-0 grid place-items-center [container-type:size]">
+              <div
+                className="relative"
+                style={{ aspectRatio: '3 / 2', width: 'min(100cqw, 150cqh)' }}
+              >
+                <img
+                  ref={imageRef}
+                  src={COURSE_FINALE_IMAGE.src}
+                  alt={COURSE_FINALE_IMAGE.alt}
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full object-contain"
+                  onLoad={markImageLoaded}
+                  onError={() => {
+                    setImageFailed(true);
+                    setImageLoaded(false);
+                  }}
+                />
+                {imageLoaded ? (
+                  <button
+                    type="button"
+                    aria-label="Заполнить данные"
+                    className="absolute cursor-pointer rounded-2xl border-0 bg-transparent p-0 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset focus-visible:outline-none"
+                    style={finaleGiftButtonStyle}
+                    onClick={finishFinale}
+                  />
+                ) : null}
+              </div>
             </div>
           )}
         </div>

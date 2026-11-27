@@ -9,6 +9,7 @@ import { PublicAuthRoute } from '@/app/router/PublicAuthRoute';
 import { TeacherRoute } from '@/app/router/TeacherRoute';
 import { routes } from '@/shared/config/routes';
 import { TeacherGachaCardsPage } from '@/pages/teacher/gacha-cards/ui/TeacherGachaCardsPage';
+import { TeacherCourseGiftsPage } from '@/pages/teacher/course-gifts/ui/TeacherCourseGiftsPage';
 import { GachaPage } from '@/pages/gacha/ui/GachaPage';
 import { GachaPlayPage } from '@/pages/gacha-play/ui/GachaPlayPage';
 import { GachaCollectionPage } from '@/pages/gacha-collection/ui/GachaCollectionPage';
@@ -68,6 +69,10 @@ export const router = createBrowserRouter([
           {
             path: routes.teacherGachaCards,
             element: <TeacherGachaCardsPage />,
+          },
+          {
+            path: routes.teacherCourseGifts,
+            element: <TeacherCourseGiftsPage />,
           },
           {
             path: routes.teacherLessonPractice,

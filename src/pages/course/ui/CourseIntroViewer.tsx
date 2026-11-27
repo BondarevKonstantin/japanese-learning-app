@@ -14,10 +14,7 @@ const controlClassName =
 
 export const CourseIntroViewer = ({ onClose, onComplete }: CourseIntroViewerProps) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
   const [slideIndex, setSlideIndex] = useState(0);
-  const [zoomed, setZoomed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [loadedSlideIndexes, setLoadedSlideIndexes] = useState<ReadonlySet<number>>(
     () => new Set(),
@@ -36,7 +33,6 @@ export const CourseIntroViewer = ({ onClose, onComplete }: CourseIntroViewerProp
       dialog.showModal();
     }
 
-    closeButtonRef.current?.focus();
     const unlock = lockBackgroundScroll(dialog);
 
     return () => {
@@ -49,16 +45,6 @@ export const CourseIntroViewer = ({ onClose, onComplete }: CourseIntroViewerProp
 
   const requestClose = () => {
     onClose();
-  };
-
-  const resetFrameScroll = () => {
-    const frame = frameRef.current;
-    if (!frame) {
-      return;
-    }
-
-    frame.scrollTop = 0;
-    frame.scrollLeft = 0;
   };
 
   const markSlideFailed = (index: number) => {
@@ -88,9 +74,7 @@ export const CourseIntroViewer = ({ onClose, onComplete }: CourseIntroViewerProp
 
   const showSlide = (nextIndex: number) => {
     setSlideIndex(nextIndex);
-    setZoomed(false);
     setImageFailed(false);
-    resetFrameScroll();
   };
 
   const finishIntro = () => {
@@ -108,63 +92,31 @@ export const CourseIntroViewer = ({ onClose, onComplete }: CourseIntroViewerProp
     <dialog
       ref={dialogRef}
       aria-labelledby="course-intro-title"
-      className="fixed inset-0 m-0 h-dvh max-h-dvh w-full max-w-full overflow-hidden border-0 bg-black p-0 text-text-primary backdrop:bg-black/80"
+      className="fixed inset-0 m-0 h-dvh max-h-dvh w-full max-w-full overflow-hidden border-0 bg-[#fff6f8] p-0 text-text-primary backdrop:bg-[#fff6f8]"
       onCancel={(event) => {
         event.preventDefault();
         requestClose();
       }}
     >
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-surface px-3 py-2 sm:px-4">
-          <p id="course-intro-title" className="text-sm text-text-secondary">
-            Слайд {slideIndex + 1} из {COURSE_STORY_SLIDES.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className={controlClassName}
-              onClick={() => {
-                setZoomed((current) => !current);
-                resetFrameScroll();
-              }}
-              disabled={imageFailed}
-            >
-              {zoomed ? 'Обычный размер' : 'Увеличить'}
-            </button>
-            <button
-              ref={closeButtonRef}
-              type="button"
-              className={controlClassName}
-              onClick={requestClose}
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
+        <h2 id="course-intro-title" className="sr-only">
+          Слайд {slideIndex + 1} из {COURSE_STORY_SLIDES.length}
+        </h2>
 
-        <div
-          ref={frameRef}
-          className={`min-h-0 w-full flex-1 overscroll-contain bg-black ${
-            zoomed ? 'overflow-auto' : 'overflow-hidden'
-          }`}
-        >
+        <div className="min-h-0 w-full flex-1 overflow-hidden overscroll-contain bg-[#fff6f8]">
           {imageFailed ? (
             <div className="flex h-full items-center justify-center p-4">
-              <p className="max-w-md rounded-2xl bg-surface px-4 py-3 text-center text-sm text-text-primary">
-                Не удалось показать этот слайд. Окно можно закрыть и продолжить курс.
-              </p>
+              <div className="flex max-w-md flex-wrap items-center justify-center gap-3">
+                <p className="rounded-2xl bg-surface px-4 py-3 text-center text-sm text-text-primary">
+                  Не удалось показать этот слайд. Окно можно закрыть и продолжить курс.
+                </p>
+                <button type="button" className={controlClassName} onClick={requestClose}>
+                  Закрыть
+                </button>
+              </div>
             </div>
-          ) : zoomed ? (
-            <img
-              src={slide.src}
-              alt={slide.alt}
-              draggable={false}
-              className="mx-auto h-auto w-[220%] max-w-none object-contain sm:w-[160%]"
-              onLoad={() => markSlideLoaded(slideIndex)}
-              onError={() => markSlideFailed(slideIndex)}
-            />
           ) : (
-            <div className="flex h-full w-full items-center justify-center p-2 sm:p-4">
+            <div className="flex h-full w-full items-center justify-center">
               <img
                 src={slide.src}
                 alt={slide.alt}
