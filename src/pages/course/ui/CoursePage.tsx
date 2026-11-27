@@ -345,21 +345,25 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
 
   return (
     <AppLayout>
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col max-lg:overflow-y-auto lg:overflow-hidden">
         {isTeacherPreview ? (
-          <div className="mb-6 rounded-3xl border border-primary bg-primary-light px-5 py-4 text-text-primary">
+          <div className="mb-4 rounded-3xl border border-primary bg-primary-light px-4 py-3 text-text-primary lg:mb-6 lg:px-5 lg:py-4">
             <p className="font-semibold">Режим предпросмотра</p>
-            <p className="mt-1 text-sm">Так курс будет выглядеть для ученика после публикации.</p>
+            <p className="mt-1 break-words text-sm">
+              Так курс будет выглядеть для ученика после публикации.
+            </p>
           </div>
         ) : null}
 
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-          <div>
+        <div className="flex min-w-0 flex-col items-start justify-between gap-3 sm:flex-row lg:gap-4">
+          <div className="min-w-0 max-w-full">
             <p className="text-sm font-medium text-accent">
               {isTeacherPreview ? 'Teacher preview' : 'Student panel'}
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-text-primary">{course?.title ?? 'Курс'}</h1>
-            <p className="mt-2 text-text-secondary">
+            <h1 className="mt-2 break-words text-2xl font-bold text-text-primary lg:text-3xl">
+              {course?.title ?? 'Курс'}
+            </h1>
+            <p className="mt-2 break-words text-text-secondary">
               {course?.description?.trim() || 'Изучай уроки и открывай новые карточки'}
             </p>
             {storyCourse ? (
@@ -367,7 +371,7 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
                 <button
                   type="button"
                   onClick={replayIntro}
-                  className="text-sm font-medium text-accent transition hover:opacity-80"
+                  className="inline-flex items-center text-sm font-medium text-accent transition hover:opacity-80 max-lg:min-h-11"
                 >
                   Посмотреть вступление
                 </button>
@@ -375,7 +379,7 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
                   <button
                     type="button"
                     onClick={replayFinale}
-                    className="text-sm font-medium text-accent transition hover:opacity-80"
+                    className="inline-flex items-center text-sm font-medium text-accent transition hover:opacity-80 max-lg:min-h-11"
                   >
                     Посмотреть поздравление
                   </button>
@@ -384,12 +388,12 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <BackButton fallbackTo={isTeacherPreview ? routes.teacherCourses : routes.courses} />
             {isTeacherPreview ? (
               <Link
                 to={routes.teacherEditCourse.replace(':courseId', courseIdParam)}
-                className="rounded-2xl border border-border bg-surface px-4 py-3 font-medium text-text-primary transition hover:bg-background"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border bg-surface px-4 py-3 text-center font-medium text-text-primary transition hover:bg-background"
               >
                 Вернуться к редактированию
               </Link>
@@ -397,15 +401,15 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
           </div>
         </div>
 
-        <div className="mt-8 grid min-h-0 flex-1 gap-8 lg:grid-cols-[1fr_320px]">
-          <div className="flex min-h-0 flex-col rounded-3xl border border-border bg-surface p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
+        <div className="mt-4 grid min-w-0 gap-4 max-lg:flex-none lg:mt-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_320px] lg:gap-8">
+          <div className="flex min-w-0 flex-col rounded-3xl border border-border bg-surface p-4 shadow-sm lg:min-h-0 lg:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-xl font-semibold text-text-primary">Уроки курса</h2>
               <p className="text-sm text-text-secondary">Всего: {lessons.length}</p>
             </div>
 
             {errorMessage ? (
-              <p className="mt-4 rounded-2xl border border-accent bg-secondary px-4 py-3 text-sm text-accent">
+              <p className="mt-4 break-words rounded-2xl border border-accent bg-secondary px-4 py-3 text-sm text-accent">
                 {errorMessage}
               </p>
             ) : null}
@@ -413,12 +417,12 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             {isLoading ? (
               <p className="mt-6 text-text-secondary">Загрузка...</p>
             ) : lessons.length === 0 ? (
-              <div className="mt-6 rounded-3xl border border-dashed border-border bg-background p-8 text-center">
+              <div className="mt-4 rounded-3xl border border-dashed border-border bg-background p-4 text-center lg:mt-6 lg:p-8">
                 <p className="text-text-primary">У этого курса пока нет доступных уроков.</p>
               </div>
             ) : (
-              <div className="mt-6 min-h-0 flex-1 overflow-auto pr-2">
-                <div className="grid gap-4">
+              <div className="mt-4 min-w-0 lg:mt-6 lg:min-h-0 lg:flex-1 lg:overflow-auto lg:pr-2">
+                <div className="grid gap-3 lg:gap-4">
                   {lessons.map((lesson, index) => {
                     const submission = submissionsMap[lesson.id];
 
@@ -428,17 +432,17 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
                     return (
                       <div
                         key={lesson.id}
-                        className="rounded-3xl border border-border bg-background p-5"
+                        className="min-w-0 rounded-3xl border border-border bg-background p-4 lg:p-5"
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
+                        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm text-text-secondary">Урок {index + 1}</p>
 
-                            <h3 className="mt-1 text-xl font-semibold text-text-primary">
+                            <h3 className="mt-1 break-words text-lg font-semibold text-text-primary sm:text-xl">
                               {lesson.title}
                             </h3>
 
-                            <p className="mt-2 text-sm text-text-secondary">
+                            <p className="mt-2 break-words text-sm text-text-secondary">
                               {lesson.description?.trim() || 'Без описания'}
                             </p>
 
@@ -452,11 +456,11 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
                             ) : null}
                           </div>
 
-                          <div className="flex shrink-0 gap-2">
+                          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
                             {isReviewed ? (
                               <Link
                                 to={buildLessonResultsRoute(courseIdParam, lesson.id)}
-                                className="rounded-2xl border border-border px-4 py-3 text-sm font-medium text-text-primary transition hover:bg-surface"
+                                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border px-4 py-3 text-center text-sm font-medium text-text-primary transition hover:bg-surface"
                               >
                                 Результаты
                               </Link>
@@ -468,7 +472,7 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
                                   ? buildTeacherLessonPreviewRoute(courseIdParam, lesson.id)
                                   : buildLessonRoute(courseIdParam, lesson.id)
                               }
-                              className="rounded-2xl bg-primary px-4 py-3 font-medium text-white transition hover:opacity-90"
+                              className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-primary px-4 py-3 text-center font-medium text-white transition hover:opacity-90"
                             >
                               Открыть
                             </Link>
@@ -482,10 +486,10 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             )}
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-col gap-4">
-            <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+          <div className="flex min-w-0 flex-col gap-4 lg:min-h-0">
+            <div className="min-w-0 rounded-3xl border border-border bg-surface p-4 shadow-sm lg:p-6">
               <h2 className="text-xl font-semibold text-text-primary">О курсе</h2>
-              <p className="mt-4 text-sm leading-6 text-text-secondary">
+              <p className="mt-4 break-words text-sm leading-6 text-text-secondary">
                 {course?.description?.trim() || 'Описание курса пока не добавлено'}
               </p>
             </div>
@@ -501,20 +505,20 @@ export const CoursePage = ({ mode = 'student' }: CoursePageProps) => {
             ) : null}
 
             {!isTeacherPreview ? (
-              <div className="rounded-3xl border border-border bg-surface p-6 shadow-sm">
+              <div className="min-w-0 rounded-3xl border border-border bg-surface p-4 shadow-sm lg:p-6">
                 <h2 className="text-xl font-semibold text-text-primary">Дополнительно</h2>
 
                 <div className="mt-4 flex flex-col gap-3">
                   <Link
                     to={buildCourseGachaRoute(courseIdParam)}
-                    className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
                   >
                     Открыть гачу
                   </Link>
 
                   <Link
                     to={buildCourseCollectionRoute(courseIdParam)}
-                    className="rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-border bg-background px-4 py-3 text-center font-medium text-text-primary transition hover:bg-surface"
                   >
                     Моя коллекция
                   </Link>

@@ -63,33 +63,43 @@ export const MarkdownRenderer = ({ content }: Props) => {
   };
 
   return (
-    <div className="text-text-primary leading-7">
+    <div className="min-w-0 max-w-full break-words text-text-primary leading-7">
       <ReactMarkdown
         components={{
           h1: ({ children }) => (
-            <h1 className="mb-4 text-3xl font-bold leading-tight">{children}</h1>
+            <h1 className="mb-4 break-words text-2xl font-bold leading-tight sm:text-3xl">{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-3 mt-8 text-2xl font-semibold leading-tight">{children}</h2>
+            <h2 className="mb-3 mt-6 break-words text-xl font-semibold leading-tight sm:mt-8 sm:text-2xl">
+              {children}
+            </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-3 mt-6 text-xl font-semibold leading-tight">{children}</h3>
+            <h3 className="mb-3 mt-6 break-words text-lg font-semibold leading-tight sm:text-xl">
+              {children}
+            </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="mb-2 mt-5 text-lg font-semibold leading-tight">{children}</h4>
+            <h4 className="mb-2 mt-5 break-words text-base font-semibold leading-tight sm:text-lg">
+              {children}
+            </h4>
           ),
           p: ({ children }) => (
-            <p className="mb-4 text-base leading-7 text-text-primary">{children}</p>
+            <p className="mb-4 break-words text-base leading-7 text-text-primary">{children}</p>
           ),
           strong: ({ children }) => (
             <strong className="font-semibold text-text-primary">{children}</strong>
           ),
           em: ({ children }) => <em className="italic text-text-primary">{children}</em>,
-          ul: ({ children }) => <ul className="mb-4 list-disc space-y-2 pl-6">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-4 list-decimal space-y-2 pl-6">{children}</ol>,
-          li: ({ children }) => <li>{children}</li>,
+          ul: ({ children }) => (
+            <ul className="mb-4 min-w-0 list-disc space-y-2 pl-6">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="mb-4 min-w-0 list-decimal space-y-2 pl-6">{children}</ol>
+          ),
+          li: ({ children }) => <li className="min-w-0 break-words">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="mb-4 border-l-4 border-primary pl-4 italic text-text-secondary">
+            <blockquote className="mb-4 min-w-0 break-words border-l-4 border-primary pl-4 italic text-text-secondary">
               {children}
             </blockquote>
           ),
@@ -97,12 +107,25 @@ export const MarkdownRenderer = ({ content }: Props) => {
           a: ({ href, children }) => (
             <a
               href={href}
-              className="text-accent underline underline-offset-2"
+              className="break-words text-accent underline underline-offset-2"
               target="_blank"
               rel="noreferrer"
             >
               {children}
             </a>
+          ),
+          table: ({ children }) => (
+            <div className="my-4 min-w-0 max-w-full overflow-x-auto">
+              <table className="w-max min-w-full border-collapse text-left text-sm">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border border-border px-3 py-2 align-top font-semibold break-words">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border border-border px-3 py-2 align-top break-words">{children}</td>
           ),
           pre: ({ children }) => {
             const mediaView = findMediaView(children);
@@ -110,7 +133,7 @@ export const MarkdownRenderer = ({ content }: Props) => {
               return mediaView;
             }
 
-            return <pre>{children}</pre>;
+            return <pre className="mb-4 min-w-0 max-w-full overflow-x-auto">{children}</pre>;
           },
           code: ({ className, children }) => {
             const source = readNodeText(children).replace(/\n$/, '');
@@ -129,7 +152,15 @@ export const MarkdownRenderer = ({ content }: Props) => {
               }
             }
 
-            return <code className="rounded bg-surface px-1.5 py-0.5 text-sm">{children}</code>;
+            const isBlock = Boolean(language) || source.includes('\n');
+
+            if (isBlock) {
+              return <code className="block whitespace-pre text-sm">{children}</code>;
+            }
+
+            return (
+              <code className="break-words rounded bg-surface px-1.5 py-0.5 text-sm">{children}</code>
+            );
           },
           img: ({ src, alt }) => {
             const imageSrc = typeof src === 'string' ? src : '';

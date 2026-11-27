@@ -6,9 +6,14 @@ import { routes } from '@/shared/config/routes';
 
 type AppLayoutProps = PropsWithChildren<{
   disableOverflowHidden?: boolean;
+  allowPageScroll?: boolean;
 }>;
 
-export const AppLayout = ({ children, disableOverflowHidden = false }: AppLayoutProps) => {
+export const AppLayout = ({
+  children,
+  disableOverflowHidden = false,
+  allowPageScroll = false,
+}: AppLayoutProps) => {
   const { isAuthenticated, profile } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const isTeacher = profile?.role === 'teacher';
@@ -18,18 +23,24 @@ export const AppLayout = ({ children, disableOverflowHidden = false }: AppLayout
   const navLinkClassName =
     'flex min-h-11 items-center rounded-xl px-4 text-sm font-medium text-text-primary transition hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
-  return (
-    <div
-      className={`h-screen overflow-x-hidden bg-background text-text-primary ${
+  const shellClassName = allowPageScroll
+    ? 'min-h-dvh overflow-x-hidden bg-background text-text-primary'
+    : `h-screen overflow-x-hidden bg-background text-text-primary ${
         disableOverflowHidden ? '' : 'overflow-y-hidden'
-      }`}
-    >
+      }`;
+
+  return (
+    <div className={shellClassName}>
       <div className="pointer-events-none fixed inset-0 z-0 opacity-40">
         <div className="absolute -left-[100px] -top-[100px] h-72 w-72 rounded-full bg-secondary blur-3xl" />
         <div className="absolute -right-[120px] -bottom-[120px] h-80 w-80 rounded-full bg-primary-light blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col">
+      <div
+        className={
+          allowPageScroll ? 'relative z-10 flex min-h-dvh flex-col' : 'relative z-10 flex h-full flex-col'
+        }
+      >
         <div className="h-1 w-full shrink-0 bg-primary" />
 
         {isAuthenticated ? (
@@ -132,8 +143,20 @@ export const AppLayout = ({ children, disableOverflowHidden = false }: AppLayout
           </header>
         ) : null}
 
-        <div className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6">
-          <div className="mx-auto h-full min-h-0 max-w-6xl">{children}</div>
+        <div
+          className={
+            allowPageScroll
+              ? 'w-full min-w-0 px-4 py-4 sm:px-6 sm:py-6'
+              : 'min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6'
+          }
+        >
+          <div
+            className={
+              allowPageScroll ? 'mx-auto w-full min-w-0 max-w-6xl' : 'mx-auto h-full min-h-0 max-w-6xl'
+            }
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>

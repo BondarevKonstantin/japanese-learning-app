@@ -85,7 +85,7 @@ export const LessonPracticeBlock = ({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-border bg-background p-8 text-center">
+      <div className="rounded-3xl border border-dashed border-border bg-background p-4 text-center sm:p-8">
         <p className="text-text-primary">Для этого урока пока нет практики.</p>
         <p className="mt-2 text-sm text-text-secondary">
           Когда преподаватель добавит задания, они появятся здесь.
@@ -95,7 +95,7 @@ export const LessonPracticeBlock = ({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 max-w-full flex-col gap-4">
       {items.map((item, index) => {
         const userAnswer = answers[item.id] ?? '';
         const acceptedAnswers = getAcceptedAnswers(item);
@@ -113,9 +113,9 @@ export const LessonPracticeBlock = ({
           !acceptedAnswers.includes(normalizedUserAnswer);
 
         return (
-          <div key={item.id} className="rounded-3xl border border-border bg-background p-5">
+          <div key={item.id} className="min-w-0 rounded-3xl border border-border bg-background p-4 sm:p-5">
             <p className="text-sm text-text-secondary">Задание {index + 1}</p>
-            <h3 className="mt-2 text-lg font-semibold text-text-primary">{item.question}</h3>
+            <h3 className="mt-2 break-words text-lg font-semibold text-text-primary">{item.question}</h3>
 
             <PracticeItemMedia imageBlock={item.image_block} imageUrl={item.image_url} />
 
@@ -130,7 +130,7 @@ export const LessonPracticeBlock = ({
                       type="button"
                       onClick={() => handleInputChange(item.id, option)}
                       disabled={isReadonly}
-                      className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      className={`min-h-11 break-words rounded-2xl border px-4 py-3 text-left text-base transition ${
                         isSelected
                           ? 'border-primary bg-primary-light text-text-primary'
                           : 'border-border bg-surface text-text-primary hover:bg-background'
@@ -148,7 +148,7 @@ export const LessonPracticeBlock = ({
                   onChange={(event) => handleInputChange(item.id, event.target.value)}
                   rows={6}
                   disabled={isReadonly}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
+                  className="w-full min-w-0 scroll-mb-[40dvh] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Введите развёрнутый ответ"
                 />
               </div>
@@ -159,7 +159,7 @@ export const LessonPracticeBlock = ({
                   value={userAnswer}
                   onChange={(event) => handleInputChange(item.id, event.target.value)}
                   disabled={isReadonly}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
+                  className="min-h-11 w-full min-w-0 scroll-mb-[40dvh] rounded-2xl border border-border bg-surface px-4 py-3 text-base text-text-primary outline-none transition focus:border-primary focus:ring-2 focus:ring-primary-light disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="Введите ответ"
                 />
               </div>
@@ -168,7 +168,7 @@ export const LessonPracticeBlock = ({
             {isChecked ? (
               <div className="mt-4">
                 <p
-                  className={`text-sm font-medium ${
+                  className={`break-words text-sm font-medium ${
                     isTextarea
                       ? 'text-text-secondary'
                       : isCorrect
@@ -188,7 +188,7 @@ export const LessonPracticeBlock = ({
                 </p>
 
                 {item.explanation ? (
-                  <p className="mt-2 text-sm text-text-secondary">Пояснение: {item.explanation}</p>
+                  <p className="mt-2 break-words text-sm text-text-secondary">Пояснение: {item.explanation}</p>
                 ) : null}
               </div>
             ) : null}
@@ -196,12 +196,12 @@ export const LessonPracticeBlock = ({
         );
       })}
 
-      <div className="rounded-3xl border border-border bg-surface p-5">
-        <div className="flex flex-wrap gap-3">
+      <div className="min-w-0 rounded-3xl border border-border bg-surface p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={() => setIsChecked(true)}
-            className="rounded-2xl bg-primary px-5 py-3 font-medium text-white transition hover:opacity-90"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-primary px-5 py-3 text-center font-medium text-white transition hover:opacity-90 sm:w-auto"
           >
             Проверить ответы
           </button>
@@ -213,14 +213,14 @@ export const LessonPracticeBlock = ({
               setIsChecked(false);
             }}
             disabled={isReadonly}
-            className="rounded-2xl border border-border bg-background px-5 py-3 font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-border bg-background px-5 py-3 text-center font-medium text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           >
             Сбросить
           </button>
         </div>
 
         {checkResult ? (
-          <p className="mt-4 text-sm text-text-secondary">
+          <p className="mt-4 break-words text-sm text-text-secondary">
             Результат: {checkResult.correct} / {checkResult.total}
             {items.some((item) => item.type === 'textarea')
               ? ' · Задания со свободным ответом проверяются отдельно учителем'
